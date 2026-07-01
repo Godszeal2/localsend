@@ -70,7 +70,42 @@ jobs:
           Copy-Item app/build/app/outputs/flutter-apk/app-release.apk -Destination release-artifacts/android/localsend-bridge.apk -Force
           if (Test-Path "app/build/windows/x64/runner/Release") {
             Copy-Item "app/build/windows/x64/runner/Release/*" -Destination "release-artifacts/windows" -Recurse -Force
+            $mainExe = Get-ChildItem -Path "app/build/windows/x64/runner/Release" -File -Filter *.exe | Select-Object -First 1
+            if ($mainExe) {
+              Copy-Item $mainExe.FullName -Destination "release-artifacts/windows/localsend-bridge.exe" -Force
+            }
           }
+
+      - name: Generate download landing page
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $html = @"
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>LocalSend Bridge Downloads</title>
+            <style>
+              body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }
+              .card { max-width: 720px; margin: 4rem auto; padding: 2rem; background: #111827; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+              .button { display: inline-block; margin-right: 1rem; margin-top: 1rem; padding: 0.9rem 1.2rem; border-radius: 999px; background: #2563eb; color: white; text-decoration: none; font-weight: 700; }
+              .button.secondary { background: #16a34a; }
+              .muted { color: #cbd5e1; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>LocalSend Bridge downloads</h1>
+              <p class="muted">Pick the build for your device.</p>
+              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/$tag/localsend-bridge.exe">Download Windows EXE</a>
+              <a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/$tag/localsend-bridge.apk">Download APK</a>
+            </div>
+          </body>
+          </html>
+          "@
+          Set-Content -Path release-artifacts/download.html -Value $html -Encoding UTF8
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -86,8 +121,11 @@ jobs:
           body: |
             Download the Android APK and Windows build output for the bridge/screen-share workflow.
 
-            - Android APK: localsend-bridge.apk
-            - Windows executable: localsend-bridge.exe (when signing is configured)
+            [Download Windows EXE](https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge.exe)
+            [Download APK](https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge.apk)
+
+            You can also open the landing page asset for the same links.
           files: |
             release-artifacts/android/localsend-bridge.apk
             release-artifacts/windows/**
+            release-artifacts/download.html
