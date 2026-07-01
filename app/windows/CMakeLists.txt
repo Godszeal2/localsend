@@ -56,6 +56,12 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# The gal Windows plugin uses C++/WinRT APIs. Link runtimeobject.lib explicitly
+# so CI builds have the Ro* WinRT symbols required by gal_plugin.dll.
+if(TARGET gal_plugin)
+  target_link_libraries(gal_plugin PRIVATE runtimeobject.lib)
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
