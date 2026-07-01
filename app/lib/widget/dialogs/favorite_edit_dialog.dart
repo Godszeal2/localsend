@@ -43,8 +43,7 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
     _aliasController.text = widget.prefilledDevice?.alias ?? widget.favorite?.alias ?? '';
 
     ensureRef((ref) {
-      _portController.text =
-          widget.prefilledDevice?.port.toString() ??
+      _portController.text = widget.prefilledDevice?.port.toString() ??
           widget.favorite?.port.toString() ??
           ref.read(settingsProvider).port.toString();
     });
@@ -131,7 +130,9 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                   children: [
                     Text(
                       t.general.error,
-                      style: TextStyle(color: Theme.of(context).colorScheme.warning),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.warning,
+                      ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(width: 5),
@@ -183,9 +184,7 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                       return;
                     }
 
-                    await ref
-                        .redux(favoritesProvider)
-                        .dispatchAsync(
+                    await ref.redux(favoritesProvider).dispatchAsync(
                           UpdateFavoriteAction(
                             existingFavorite.copyWith(
                               ip: _ipController.text,
@@ -217,9 +216,7 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
 
                       final name = _aliasController.text.trim();
 
-                      await ref
-                          .redux(favoritesProvider)
-                          .dispatchAsync(
+                      await ref.redux(favoritesProvider).dispatchAsync(
                             AddFavoriteAction(
                               FavoriteDevice.fromValues(
                                 fingerprint: response.body.token,

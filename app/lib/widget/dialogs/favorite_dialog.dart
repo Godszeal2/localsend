@@ -118,7 +118,9 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
                 children: [
                   Text(
                     t.general.error,
-                    style: TextStyle(color: Theme.of(context).colorScheme.warning),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.warning,
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(width: 5),
