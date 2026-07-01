@@ -30,6 +30,14 @@ jobs:
           flutter-version: '3.35.0'
           channel: 'stable'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        shell: pwsh
+        run: |
+          sdkmanager.bat "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+
       - name: Enable desktop platforms
         shell: pwsh
         run: |
