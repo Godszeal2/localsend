@@ -67,3 +67,17 @@ jobs:
         with:
           name: bridge-release-artifacts
           path: release-artifacts/
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || 'bridge-mode-0.1' }}
+          name: Bridge workflow build
+          body: |
+            Download the Android APK and Windows build output for the bridge/screen-share workflow.
+
+            - Android APK: localsend-bridge.apk
+            - Windows build: contents of the windows folder
+          files: |
+            release-artifacts/android/localsend-bridge.apk
+            release-artifacts/windows/**
