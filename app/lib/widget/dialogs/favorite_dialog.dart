@@ -1,3 +1,4 @@
+// dart format off
 import 'package:common/model/device.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
@@ -159,3 +160,4 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
     );
   }
 }
+// dart format on
