@@ -1,7 +1,7 @@
 import 'package:common/model/file_type.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:localsend_app/model/cross_file.dart';
 import 'package:localsend_app/util/transfer_intent.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('Transfer intent detection', () {

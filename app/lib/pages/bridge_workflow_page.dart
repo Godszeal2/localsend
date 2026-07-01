@@ -98,7 +98,7 @@ class _WorkflowStep extends StatelessWidget {
         leading: CircleAvatar(child: Text(title.split('.').first)),
         title: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
         subtitle: Text(body),
-        tileColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        tileColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
