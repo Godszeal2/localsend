@@ -190,7 +190,8 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                               ip: _ipController.text,
                               port: int.parse(_portController.text),
                               alias: trimmedNewAlias,
-                              customAlias: existingFavorite.customAlias ||
+                              customAlias:
+                                  existingFavorite.customAlias ||
                                   trimmedNewAlias != existingFavorite.alias,
                             ),
                           ),
