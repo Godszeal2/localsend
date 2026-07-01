@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LocalSend Bridge</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<!-- ═══════════════════════════════ CONNECT SCREEN ═══════════════════════════════ -->
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="logo">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#e94560" stroke-width="2"/>
+        <path d="M16 24 L24 14 L32 24 L24 34 Z" fill="#e94560" opacity="0.8"/>
+        <circle cx="24" cy="24" r="4" fill="#fff"/>
+      </svg>
+      <h1>LocalSend Bridge</h1>
+    </div>
+    <p class="subtitle">Stream audio &amp; video · Control remotely · Bridge to Bluetooth</p>
+
+    <div class="field-group">
+      <label>Your Name</label>
+      <input type="text" id="alias-input" placeholder="My Device" maxlength="32"/>
+    </div>
+
+    <div class="field-group">
+      <label>Server Address</label>
+      <input type="text" id="server-input" placeholder="ws://192.168.x.x:5000/v1/ws"/>
+    </div>
+
+    <div class="mode-picker">
+      <button class="mode-btn active" data-mode="desktop">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4a2 2 0 00-2 2v11a2 2 0 002 2h6l-1 3H7v2h10v-2h-2l-1-3h6a2 2 0 002-2V5a2 2 0 00-2-2zm0 13H4V5h16v11z"/></svg>
+        Desktop / PC
+      </button>
+      <button class="mode-btn" data-mode="mobile">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 1h-8A2.5 2.5 0 005 3.5v17A2.5 2.5 0 007.5 23h8a2.5 2.5 0 002.5-2.5v-17A2.5 2.5 0 0015.5 1zm-4 21c-.83 0-1.5-.67-1.5-1.5S10.67 19 11.5 19s1.5.67 1.5 1.5S12.33 22 11.5 22zm4.5-4H7V4h9v14z"/></svg>
+        Phone / Bridge
+      </button>
+    </div>
+
+    <button id="connect-btn" class="btn-primary">Connect</button>
+    <div id="connect-status" class="status-msg"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ DESKTOP APP ═══════════════════════════════ -->
+<div id="desktop-app" class="hidden">
+  <header class="app-header">
+    <div class="header-logo">
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#e94560" stroke-width="2"/>
+        <path d="M16 24 L24 14 L32 24 L24 34 Z" fill="#e94560" opacity="0.8"/>
+        <circle cx="24" cy="24" r="4" fill="#fff"/>
+      </svg>
+      <span>LocalSend Bridge</span>
+    </div>
+    <div class="header-peers" id="d-peers-badge">
+      <span class="dot online"></span>
+      <span id="d-peer-count">0 peers</span>
+    </div>
+    <button id="d-disconnect-btn" class="btn-sm btn-danger">Disconnect</button>
+  </header>
+
+  <nav class="tab-nav" id="d-tabs">
+    <button class="tab-btn active" data-tab="d-stream">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
+      Stream
+    </button>
+    <button class="tab-btn" data-tab="d-equalizer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20H8V4h2v16zm-6-4H2v4h2v-4zm12 2h-2V8h2v10zm6-6h-2v8h2v-8z"/></svg>
+      Equalizer
+    </button>
+    <button class="tab-btn" data-tab="d-video">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
+      Video
+    </button>
+    <button class="tab-btn" data-tab="d-control">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3.5L3.5 10.5l6.51 2.75L20.5 3.5zm-8.5 9.5v7.5l3.75-5.25L12 13z"/></svg>
+      Remote
+    </button>
+    <button class="tab-btn" data-tab="d-peers">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      Devices
+    </button>
+  </nav>
+
+  <!-- Stream Tab -->
+  <div id="d-stream" class="tab-panel active">
+    <div class="panel-grid">
+      <div class="card">
+        <h3 class="card-title">Audio File</h3>
+        <div class="file-drop" id="audio-drop">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" opacity="0.4"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
+          <p>Drop audio file or click to browse</p>
+          <input type="file" id="audio-file" accept="audio/*" hidden>
+          <button class="btn-secondary" onclick="document.getElementById('audio-file').click()">Browse</button>
+        </div>
+        <div id="audio-player-wrap" class="hidden">
+          <div class="track-info">
+            <div class="track-icon">🎵</div>
+            <div>
+              <div id="audio-track-name" class="track-name">—</div>
+              <div id="audio-track-meta" class="track-meta">—</div>
+            </div>
+          </div>
+          <audio id="audio-el" controls></audio>
+          <div class="stream-actions">
+            <button id="audio-stream-btn" class="btn-primary">▶ Stream to Phones</button>
+            <button id="audio-stop-btn" class="btn-secondary hidden">■ Stop Streaming</button>
+          </div>
+          <div id="audio-stream-status" class="stream-badge hidden"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Streaming Peers</h3>
+        <div id="stream-peers-list" class="peers-list">
+          <div class="empty-state">No phones connected yet.<br>Connect from your phone's browser.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equalizer Tab -->
+  <div id="d-equalizer" class="tab-panel hidden">
+    <div class="card eq-card">
+      <h3 class="card-title">Audio Equalizer</h3>
+      <div class="eq-presets">
+        <button class="preset-btn active" data-preset="flat">Flat</button>
+        <button class="preset-btn" data-preset="bass">Bass Boost</button>
+        <button class="preset-btn" data-preset="vocal">Vocal</button>
+        <button class="preset-btn" data-preset="treble">Treble</button>
+        <button class="preset-btn" data-preset="electronic">Electronic</button>
+        <button class="preset-btn" data-preset="rock">Rock</button>
+        <button class="preset-btn" data-preset="classical">Classical</button>
+      </div>
+      <div class="eq-bands" id="eq-bands">
+        <!-- Dynamically populated -->
+      </div>
+      <div class="eq-master">
+        <label>Master Volume</label>
+        <input type="range" id="eq-master-vol" min="0" max="200" value="100" class="master-slider">
+        <span id="eq-master-val">100%</span>
+      </div>
+      <canvas id="eq-visualizer" class="eq-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Video Tab -->
+  <div id="d-video" class="tab-panel hidden">
+    <div class="panel-grid">
+      <div class="card">
+        <h3 class="card-title">Video File</h3>
+        <div class="file-drop" id="video-drop">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" opacity="0.4"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
+          <p>Drop video file or click to browse</p>
+          <input type="file" id="video-file" accept="video/*" hidden>
+          <button class="btn-secondary" onclick="document.getElementById('video-file').click()">Browse</button>
+        </div>
+        <div id="video-player-wrap" class="hidden">
+          <video id="video-el" controls class="video-player"></video>
+          <div class="stream-actions">
+            <button id="video-stream-btn" class="btn-primary">▶ Stream to Phones</button>
+            <button id="video-stop-btn" class="btn-secondary hidden">■ Stop Streaming</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Video Peers</h3>
+        <div id="video-peers-list" class="peers-list">
+          <div class="empty-state">No phones connected yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remote Control Receive Tab -->
+  <div id="d-control" class="tab-panel hidden">
+    <div class="panel-grid">
+      <div class="card">
+        <h3 class="card-title">Remote Control Input</h3>
+        <div class="control-status" id="ctrl-status-bar">
+          <span class="dot" id="ctrl-dot"></span>
+          <span id="ctrl-status-text">Waiting for phone connection…</span>
+        </div>
+        <div class="control-grid">
+          <div class="ctrl-panel">
+            <h4>🎮 Gamepad</h4>
+            <div id="gamepad-display" class="gamepad-display">
+              <div class="gp-row">
+                <span class="gp-badge" id="gp-l2">L2</span>
+                <span class="gp-badge" id="gp-r2">R2</span>
+              </div>
+              <div class="gp-row">
+                <span class="gp-badge" id="gp-l1">L1</span>
+                <span class="gp-badge" id="gp-r1">R1</span>
+              </div>
+              <div class="gp-main">
+                <div id="gp-dpad" class="dpad-display">
+                  <div class="dpad-row"><span id="gp-up" class="dpad-btn">▲</span></div>
+                  <div class="dpad-row"><span id="gp-left" class="dpad-btn">◀</span><span id="gp-down" class="dpad-btn">▼</span><span id="gp-right" class="dpad-btn">▶</span></div>
+                </div>
+                <div class="gp-center-btns">
+                  <span id="gp-select" class="gp-badge small">SELECT</span>
+                  <span id="gp-ps" class="gp-badge ps">PS</span>
+                  <span id="gp-start" class="gp-badge small">START</span>
+                </div>
+                <div class="face-buttons">
+                  <div><span id="gp-triangle" class="face-btn tri">△</span></div>
+                  <div class="face-mid"><span id="gp-square" class="face-btn sq">□</span><span id="gp-circle" class="face-btn ci">○</span></div>
+                  <div><span id="gp-cross" class="face-btn cr">✕</span></div>
+                </div>
+              </div>
+              <div class="stick-display">
+                <div class="stick-wrap"><div id="gp-lstick" class="stick-indicator"><div class="stick-dot"></div></div><small>L</small></div>
+                <div class="stick-wrap"><div id="gp-rstick" class="stick-indicator"><div class="stick-dot"></div></div><small>R</small></div>
+              </div>
+            </div>
+          </div>
+          <div class="ctrl-panel">
+            <h4>🖱 Mouse Events</h4>
+            <div id="mouse-display" class="event-log">
+              <div class="event-row" id="mouse-pos">Position: —</div>
+              <div class="event-row" id="mouse-btn">Button: —</div>
+              <div class="event-row" id="mouse-scroll">Scroll: —</div>
+            </div>
+            <h4 style="margin-top:16px">⌨️ Keyboard Events</h4>
+            <div id="keyboard-display" class="event-log">
+              <div id="kbd-last-key" class="event-row">Last key: —</div>
+              <div id="kbd-combo" class="event-row">Combo: —</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Peers Tab -->
+  <div id="d-peers" class="tab-panel hidden">
+    <div class="card">
+      <h3 class="card-title">Connected Devices</h3>
+      <div id="d-peers-list" class="peers-list">
+        <div class="empty-state">No devices connected yet.<br>Make sure all devices are on the same network and open this page.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ MOBILE APP ═══════════════════════════════ -->
+<div id="mobile-app" class="hidden">
+  <header class="app-header">
+    <div class="header-logo">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#e94560" stroke-width="2"/>
+        <path d="M16 24 L24 14 L32 24 L24 34 Z" fill="#e94560" opacity="0.8"/>
+        <circle cx="24" cy="24" r="4" fill="#fff"/>
+      </svg>
+      <span>Bridge</span>
+    </div>
+    <div class="header-peers">
+      <span class="dot" id="m-status-dot"></span>
+      <span id="m-status-text">Connecting…</span>
+    </div>
+    <button id="m-disconnect-btn" class="btn-sm btn-danger">✕</button>
+  </header>
+
+  <nav class="tab-nav" id="m-tabs">
+    <button class="tab-btn active" data-tab="m-bridge">🎵 Audio</button>
+    <button class="tab-btn" data-tab="m-gamepad">🎮 Pad</button>
+    <button class="tab-btn" data-tab="m-mouse">🖱 Mouse</button>
+    <button class="tab-btn" data-tab="m-keyboard">⌨️ Keys</button>
+  </nav>
+
+  <!-- Audio Bridge Tab -->
+  <div id="m-bridge" class="tab-panel active">
+    <div class="card bridge-card">
+      <div class="bridge-icon">🔊</div>
+      <h3>Audio Bridge</h3>
+      <p class="bridge-sub">Receiving audio from PC and playing through your phone speaker / AirPods</p>
+      <audio id="m-audio-el" autoplay playsinline></audio>
+      <video id="m-video-el" autoplay playsinline class="m-video hidden"></video>
+      <div id="m-now-playing" class="now-playing hidden">
+        <div class="np-spinner"></div>
+        <div>
+          <div id="m-track-name" class="track-name">—</div>
+          <div id="m-track-status" class="track-meta">Streaming from PC</div>
+        </div>
+      </div>
+      <div id="m-bridge-status" class="bridge-status">
+        <span class="dot" id="m-bridge-dot"></span>
+        <span id="m-bridge-text">Waiting for desktop stream…</span>
+      </div>
+      <div class="m-volume-row">
+        <span>🔇</span>
+        <input type="range" id="m-volume" min="0" max="100" value="100" class="master-slider">
+        <span>🔊</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gamepad Tab -->
+  <div id="m-gamepad" class="tab-panel hidden">
+    <div class="gamepad-controller">
+      <div class="gp-shoulder-row">
+        <button class="shoulder-btn" data-btn="L2">L2</button>
+        <button class="shoulder-btn" data-btn="R2">R2</button>
+      </div>
+      <div class="gp-shoulder-row">
+        <button class="shoulder-btn" data-btn="L1">L1</button>
+        <button class="shoulder-btn" data-btn="R1">R1</button>
+      </div>
+      <div class="gp-body">
+        <div class="gp-left">
+          <div class="dpad" id="dpad">
+            <button class="dpad-key" data-btn="up" style="grid-area:u">▲</button>
+            <button class="dpad-key" data-btn="left" style="grid-area:l">◀</button>
+            <div class="dpad-center" style="grid-area:c"></div>
+            <button class="dpad-key" data-btn="right" style="grid-area:r">▶</button>
+            <button class="dpad-key" data-btn="down" style="grid-area:d">▼</button>
+          </div>
+          <div class="stick-zone" id="left-stick" data-stick="left">
+            <div class="stick-thumb" id="left-thumb"></div>
+          </div>
+        </div>
+        <div class="gp-center-btns">
+          <button class="center-btn" data-btn="select">⊡</button>
+          <button class="center-btn ps-btn" data-btn="ps">PS</button>
+          <button class="center-btn" data-btn="start">≡</button>
+        </div>
+        <div class="gp-right">
+          <div class="face-grid">
+            <div class="face-row"><button class="face-key tri" data-btn="triangle">△</button></div>
+            <div class="face-row mid"><button class="face-key sq" data-btn="square">□</button><button class="face-key ci" data-btn="circle">○</button></div>
+            <div class="face-row"><button class="face-key cr" data-btn="cross">✕</button></div>
+          </div>
+          <div class="stick-zone" id="right-stick" data-stick="right">
+            <div class="stick-thumb" id="right-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mouse / Touchpad Tab -->
+  <div id="m-mouse" class="tab-panel hidden">
+    <div class="touchpad-wrap">
+      <div class="touchpad-label">Touchpad — drag to move, tap to click</div>
+      <div id="touchpad" class="touchpad">
+        <div class="touchpad-cursor" id="tp-cursor"></div>
+      </div>
+      <div class="mouse-buttons">
+        <button class="mouse-btn" id="mb-left">Left Click</button>
+        <button class="mouse-btn" id="mb-middle">Scroll Click</button>
+        <button class="mouse-btn" id="mb-right">Right Click</button>
+      </div>
+      <div class="scroll-row">
+        <button class="mouse-btn" id="mb-scroll-up">▲ Scroll Up</button>
+        <button class="mouse-btn" id="mb-scroll-down">▼ Scroll Down</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Tab -->
+  <div id="m-keyboard" class="tab-panel hidden">
+    <div class="vkb-wrap" id="vkb">
+      <!-- dynamically generated -->
+    </div>
+    <div class="vkb-modifiers">
+      <button class="mod-btn" id="mod-ctrl" data-mod="ctrl">Ctrl</button>
+      <button class="mod-btn" id="mod-alt" data-mod="alt">Alt</button>
+      <button class="mod-btn" id="mod-shift" data-mod="shift">Shift</button>
+      <button class="mod-btn" id="mod-win" data-mod="win">Win</button>
+    </div>
+    <div class="vkb-specials">
+      <button class="spec-btn" data-key="Escape" data-code="Escape">ESC</button>
+      <button class="spec-btn" data-key="Tab" data-code="Tab">TAB</button>
+      <button class="spec-btn" data-key="Backspace" data-code="Backspace">⌫</button>
+      <button class="spec-btn" data-key="Enter" data-code="Enter">ENTER</button>
+      <button class="spec-btn" data-key="Delete" data-code="Delete">DEL</button>
+      <button class="spec-btn" data-key="ArrowUp" data-code="ArrowUp">↑</button>
+      <button class="spec-btn" data-key="ArrowDown" data-code="ArrowDown">↓</button>
+      <button class="spec-btn" data-key="ArrowLeft" data-code="ArrowLeft">←</button>
+      <button class="spec-btn" data-key="ArrowRight" data-code="ArrowRight">→</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
+<script src="app.js"></script>
+</body>
+</html>
