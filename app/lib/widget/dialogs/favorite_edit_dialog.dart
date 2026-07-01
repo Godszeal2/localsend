@@ -110,10 +110,10 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
 
                   if (context.mounted && result == true) {
                     await context.ref.redux(favoritesProvider).dispatchAsync(
-                          RemoveFavoriteAction(
-                            deviceFingerprint: widget.favorite!.fingerprint,
-                          ),
-                        );
+                      RemoveFavoriteAction(
+                        deviceFingerprint: widget.favorite!.fingerprint,
+                      ),
+                    );
                     if (context.mounted) {
                       context.pop();
                     }
@@ -185,17 +185,16 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                     }
 
                     await ref.redux(favoritesProvider).dispatchAsync(
-                          UpdateFavoriteAction(
-                            existingFavorite.copyWith(
-                              ip: _ipController.text,
-                              port: int.parse(_portController.text),
-                              alias: trimmedNewAlias,
-                              customAlias:
-                                  existingFavorite.customAlias ||
-                                  trimmedNewAlias != existingFavorite.alias,
-                            ),
-                          ),
-                        );
+                      UpdateFavoriteAction(
+                        existingFavorite.copyWith(
+                          ip: _ipController.text,
+                          port: int.parse(_portController.text),
+                          alias: trimmedNewAlias,
+                          customAlias: existingFavorite.customAlias ||
+                              trimmedNewAlias != existingFavorite.alias,
+                        ),
+                      ),
+                    );
                   } else {
                     // Add new favorite
                     final ip = _ipController.text;
@@ -208,24 +207,24 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                     try {
                       final payload = ref.read(deviceFullInfoProvider).toRegisterDto();
                       final response = await ref.read(httpProvider).v2.register(
-                            protocol: https ? ProtocolType.https : ProtocolType.http,
-                            ip: ip,
-                            port: port,
-                            payload: payload,
-                          );
+                        protocol: https ? ProtocolType.https : ProtocolType.http,
+                        ip: ip,
+                        port: port,
+                        payload: payload,
+                      );
 
                       final name = _aliasController.text.trim();
 
                       await ref.redux(favoritesProvider).dispatchAsync(
-                            AddFavoriteAction(
-                              FavoriteDevice.fromValues(
-                                fingerprint: response.body.token,
-                                ip: _ipController.text,
-                                port: int.parse(_portController.text),
-                                alias: name.isEmpty ? response.body.alias : name,
-                              ),
-                            ),
-                          );
+                        AddFavoriteAction(
+                          FavoriteDevice.fromValues(
+                            fingerprint: response.body.token,
+                            ip: _ipController.text,
+                            port: int.parse(_portController.text),
+                            alias: name.isEmpty ? response.body.alias : name,
+                          ),
+                        ),
+                      );
 
                       if (context.mounted) {
                         context.pop();
