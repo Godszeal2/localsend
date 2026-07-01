@@ -6,7 +6,8 @@
 /* ── Constants ─────────────────────────────────────────────── */
 const PROTOCOL_VERSION = '2.3';
 const DATACHANNEL_LABEL = 'bridge-control';
-const ICE_SERVERS = [
+// Default ICE servers (STUN only). Overwritten by /v1/ice-servers after connect.
+let ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];

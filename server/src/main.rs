@@ -1,4 +1,4 @@
-use crate::controller::ws_controller;
+use crate::controller::{ice_controller, ws_controller};
 use axum::routing::get;
 use axum::Router;
 use std::net::SocketAddr;
@@ -7,17 +7,22 @@ use tower_http::services::{ServeDir, ServeFile};
 
 mod config;
 mod controller;
+mod turn_server;
 mod util;
 
 #[tokio::main]
 async fn main() {
     let app_state = config::init::init().await;
 
+    // Start the TURN relay server in the background.
+    // It binds UDP :3478 independently of the HTTP server.
+    tokio::spawn(turn_server::start_turn_server());
+
     let app = configure_routes()
         .with_state(app_state)
         .into_make_service_with_connect_info::<SocketAddr>();
 
-    let server_ip = std::env::var("SERVER_IP").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let server_ip   = std::env::var("SERVER_IP").unwrap_or_else(|_| "0.0.0.0".to_string());
     let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "5000".to_string());
     let bind_address = format!("{server_ip}:{server_port}");
 
@@ -35,7 +40,8 @@ fn configure_routes() -> Router<config::state::AppState> {
         .fallback(ServeFile::new(format!("{static_dir}/index.html")));
 
     Router::new()
-        .route("/v1/ws", get(ws_controller::ws_handler))
+        .route("/v1/ws",          get(ws_controller::ws_handler))
+        .route("/v1/ice-servers", get(ice_controller::ice_servers_handler))
         .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
 }

@@ -4,38 +4,67 @@
   "description": "BridgeCast Desktop — Audio/Video streaming bridge",
   "main": "main.js",
   "scripts": {
-    "start":   "electron .",
-    "build":   "electron-builder --publish never",
-    "build:win":   "electron-builder --win --publish never",
-    "build:mac":   "electron-builder --mac --publish never",
-    "build:linux": "electron-builder --linux --publish never"
+    "start":          "electron .",
+    "start:dev":      "ELECTRON_DEV=1 electron .",
+    "pack":           "electron-builder --dir",
+    "dist:win":       "electron-builder --win --x64",
+    "dist:win:port":  "electron-builder --win portable --x64",
+    "dist:linux":     "electron-builder --linux --x64",
+    "dist:mac":       "electron-builder --mac --x64"
   },
   "build": {
     "appId": "com.bridgecast.desktop",
     "productName": "BridgeCast",
+    "copyright": "BridgeCast",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
     "extraResources": [
-      { "from": "../server/target/release/server", "to": "server", "filter": ["**/*"] }
+      {
+        "from": "../server/target/release/server",
+        "to":   "bin/server",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../server/target/release/server.exe",
+        "to":   "bin/server.exe",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../server/static",
+        "to":   "static"
+      }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": [
+        { "target": "nsis",     "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "requestedExecutionLevel": "asInvoker"
     },
-    "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns",
-      "category": "public.app-category.utilities"
+    "nsis": {
+      "oneClick":            false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName":        "BridgeCast"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.png",
+      "target": ["AppImage", "deb"],
       "category": "Network"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities"
     }
   },
-  "dependencies": {
-    "electron-store": "^8.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "electron": "^30.0.0",
+    "electron":         "^30.0.0",
     "electron-builder": "^24.0.0"
   }
 }
