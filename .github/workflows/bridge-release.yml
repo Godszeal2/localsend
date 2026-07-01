@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
-    runs-on: windows-latest
+  build-android:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -24,100 +24,129 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: 'stable'
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.93.1
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android build tools
-        shell: pwsh
-        run: |
-          sdkmanager.bat "platform-tools" "platforms;android-33" "build-tools;34.0.0"
-
       - name: Enable desktop platforms
-        shell: bash
         run: |
           cd app
-          ../submodules/flutter/bin/flutter --version
-          ../submodules/flutter/bin/flutter config --enable-windows-desktop
-          ../submodules/flutter/bin/flutter config --enable-linux-desktop
-          ../submodules/flutter/bin/flutter config --enable-macos-desktop
-          ../submodules/flutter/bin/flutter pub get
+          flutter config --enable-linux-desktop
+          flutter pub get
 
       - name: Build Android APK
-        shell: bash
         run: |
           cd app
-          ../submodules/flutter/bin/flutter build apk --release
+          flutter build apk --release
 
-      - name: Build Windows EXE
-        shell: bash
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Fix long file paths
+        run: git config --system core.longpaths true
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: 'stable'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.93.1
+
+      - name: Enable desktop platforms
+        shell: pwsh
         run: |
           cd app
-          ../submodules/flutter/bin/flutter build windows --release
+          flutter config --enable-windows-desktop
+          flutter pub get
 
-      - name: Sign Windows artifacts
-        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
-        shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          New-Item -ItemType Directory -Force -Path .\release-artifacts\windows | Out-Null
-          $certPath = Join-Path $env:GITHUB_WORKSPACE 'windows-cert.pfx'
-          [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
-          ./scripts/sign_windows.ps1 -BuildDir "app/build/windows/x64/runner/Release" -CertificatePath $certPath -Password $env:WINDOWS_CERTIFICATE_PASSWORD -OutputDir "release-artifacts/windows"
-
-      - name: Prepare release artifacts
+      - name: Build Windows release
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path release-artifacts/android, release-artifacts/windows | Out-Null
-          Copy-Item app/build/app/outputs/flutter-apk/app-release.apk -Destination release-artifacts/android/localsend-bridge.apk -Force
-          if (Test-Path "app/build/windows/x64/runner/Release") {
-            Copy-Item "app/build/windows/x64/runner/Release/*" -Destination "release-artifacts/windows" -Recurse -Force
-            $mainExe = Get-ChildItem -Path "app/build/windows/x64/runner/Release" -File -Filter *.exe | Select-Object -First 1
-            if ($mainExe) {
-              Copy-Item $mainExe.FullName -Destination "release-artifacts/windows/localsend-bridge.exe" -Force
-            }
+          cd app
+          flutter build windows --release
+
+      - name: Prepare Windows archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-dist | Out-Null
+          Copy-Item app/build/windows/x64/runner/Release/* windows-dist -Recurse -Force
+          if (Test-Path "windows-dist/localsend.exe") {
+            Rename-Item windows-dist/localsend.exe windows-dist/localsend-bridge.exe
           }
+          Compress-Archive -Path windows-dist/* -DestinationPath localsend-bridge-windows.zip -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: localsend-bridge-windows.zip
+
+  publish-release:
+    needs: [build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: release-artifacts/android
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: release-artifacts/windows
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-artifacts/android release-artifacts/windows
+          cp release-artifacts/android/app-release.apk release-artifacts/android/localsend-bridge.apk
+          cp release-artifacts/windows/localsend-bridge-windows.zip release-artifacts/windows/localsend-bridge-windows.zip
 
       - name: Generate download landing page
-        shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $html = @"
+          cat > release-artifacts/download.html <<'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>LocalSend Bridge Downloads</title>
+            <title>LocalSend Bridge downloads</title>
             <style>
-              body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }
-              .card { max-width: 720px; margin: 4rem auto; padding: 2rem; background: #111827; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
-              .button { display: inline-block; margin-right: 1rem; margin-top: 1rem; padding: 0.9rem 1.2rem; border-radius: 999px; background: #2563eb; color: white; text-decoration: none; font-weight: 700; }
+              body { font-family: Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }
+              .card { max-width: 720px; margin: 4rem auto; padding: 2rem; background: #111827; border-radius: 16px; }
+              .button { display: inline-block; margin: 1rem 1rem 0 0; padding: 0.9rem 1.2rem; border-radius: 999px; background: #2563eb; color: white; text-decoration: none; font-weight: 700; }
               .button.secondary { background: #16a34a; }
-              .muted { color: #cbd5e1; line-height: 1.6; }
             </style>
           </head>
           <body>
             <div class="card">
               <h1>LocalSend Bridge downloads</h1>
-              <p class="muted">Pick the build for your device.</p>
-              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/$tag/localsend-bridge.exe">Download Windows EXE</a>
-              <a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/$tag/localsend-bridge.apk">Download APK</a>
+              <p>Choose your build.</p>
+              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge-windows.zip">Download Windows EXE</a>
+              <a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge.apk">Download APK</a>
             </div>
           </body>
           </html>
-          "@
-          Set-Content -Path release-artifacts/download.html -Value $html -Encoding UTF8
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: bridge-release-artifacts
-          path: release-artifacts/
+          EOF
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
@@ -125,13 +154,11 @@ jobs:
           tag_name: ${{ github.ref_name || 'bridge-mode-0.1' }}
           name: Bridge workflow build
           body: |
-            Download the Android APK and Windows build output for the bridge/screen-share workflow.
+            Download the Android APK or Windows build archive for the bridge/screen-share workflow.
 
-            [Download Windows EXE](https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge.exe)
+            [Download Windows EXE](https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge-windows.zip)
             [Download APK](https://github.com/Godszeal2/localsend/releases/download/${{ github.ref_name }}/localsend-bridge.apk)
-
-            You can also open the landing page asset for the same links.
           files: |
             release-artifacts/android/localsend-bridge.apk
-            release-artifacts/windows/**
+            release-artifacts/windows/localsend-bridge-windows.zip
             release-artifacts/download.html

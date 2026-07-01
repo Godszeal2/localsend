@@ -6,6 +6,7 @@ extension FileTypeExt on FileType {
     return switch (this) {
       FileType.image => Icons.image,
       FileType.video => Icons.movie,
+      FileType.audio => Icons.audiotrack,
       FileType.pdf => Icons.description,
       FileType.text => Icons.subject,
       FileType.apk => Icons.android,
