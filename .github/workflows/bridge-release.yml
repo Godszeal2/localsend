@@ -44,6 +44,25 @@ jobs:
           flutter config --enable-linux-desktop
           flutter pub get
 
+      - name: Create temporary Android signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore app/android/bridge-release.jks \
+            -storepass bridge-release \
+            -keypass bridge-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -alias bridge \
+            -dname "CN=Bridge Release, OU=CI, O=LocalSend, L=CI, S=CI, C=US" \
+            -noprompt
+          cat > app/android/key.properties <<'EOF'
+          storePassword=bridge-release
+          keyPassword=bridge-release
+          keyAlias=bridge
+          storeFile=../bridge-release.jks
+          EOF
+
       - name: Build Android APK
         run: |
           cd app
@@ -57,7 +76,7 @@ jobs:
           retention-days: 14
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Fix long file paths
         run: git config --system core.longpaths true
@@ -87,6 +106,8 @@ jobs:
         shell: pwsh
         run: |
           cd app
+          $env:CMAKE_GENERATOR = "Visual Studio 17 2022"
+          $env:CMAKE_GENERATOR_PLATFORM = "x64"
           flutter build windows --release
 
       - name: Prepare Windows archive
