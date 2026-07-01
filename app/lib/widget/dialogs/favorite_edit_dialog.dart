@@ -44,7 +44,9 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
 
     ensureRef((ref) {
       _portController.text =
-          widget.prefilledDevice?.port.toString() ?? widget.favorite?.port.toString() ?? ref.read(settingsProvider).port.toString();
+          widget.prefilledDevice?.port.toString() ??
+          widget.favorite?.port.toString() ??
+          ref.read(settingsProvider).port.toString();
     });
   }
 
@@ -59,7 +61,11 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.favorite != null ? t.dialogs.favoriteEditDialog.titleEdit : t.dialogs.favoriteEditDialog.titleAdd),
+      title: Text(
+        widget.favorite != null
+            ? t.dialogs.favoriteEditDialog.titleEdit
+            : t.dialogs.favoriteEditDialog.titleAdd,
+      ),
       content: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: Column(
@@ -104,7 +110,11 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                   );
 
                   if (context.mounted && result == true) {
-                    await context.ref.redux(favoritesProvider).dispatchAsync(RemoveFavoriteAction(deviceFingerprint: widget.favorite!.fingerprint));
+                    await context.ref.redux(favoritesProvider).dispatchAsync(
+                          RemoveFavoriteAction(
+                            deviceFingerprint: widget.favorite!.fingerprint,
+                          ),
+                        );
                     if (context.mounted) {
                       context.pop();
                     }
@@ -119,7 +129,10 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                 padding: const EdgeInsets.only(top: 10),
                 child: Row(
                   children: [
-                    Text(t.general.error, style: TextStyle(color: Theme.of(context).colorScheme.warning)),
+                    Text(
+                      t.general.error,
+                      style: TextStyle(color: Theme.of(context).colorScheme.warning),
+                    ),
                     if (_error != null) ...[
                       const SizedBox(width: 5),
                       InkWell(
@@ -131,7 +144,11 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 5),
-                          child: Icon(Icons.info, color: Theme.of(context).colorScheme.warning, size: 20),
+                          child: Icon(
+                            Icons.info,
+                            color: Theme.of(context).colorScheme.warning,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ],
@@ -174,7 +191,9 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                               ip: _ipController.text,
                               port: int.parse(_portController.text),
                               alias: trimmedNewAlias,
-                              customAlias: existingFavorite.customAlias || trimmedNewAlias != existingFavorite.alias,
+                              customAlias:
+                                  existingFavorite.customAlias ||
+                                  trimmedNewAlias != existingFavorite.alias,
                             ),
                           ),
                         );
@@ -189,15 +208,12 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
 
                     try {
                       final payload = ref.read(deviceFullInfoProvider).toRegisterDto();
-                      final response = await ref
-                          .read(httpProvider)
-                          .v2
-                          .register(
-                        protocol: https ? ProtocolType.https : ProtocolType.http,
-                        ip: ip,
-                        port: port,
-                        payload: payload,
-                      );
+                      final response = await ref.read(httpProvider).v2.register(
+                            protocol: https ? ProtocolType.https : ProtocolType.http,
+                            ip: ip,
+                            port: port,
+                            payload: payload,
+                          );
 
                       final name = _aliasController.text.trim();
 
