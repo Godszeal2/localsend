@@ -1,0 +1,41 @@
+{
+  "name": "bridgecast-desktop",
+  "version": "1.0.0",
+  "description": "BridgeCast Desktop — Audio/Video streaming bridge",
+  "main": "main.js",
+  "scripts": {
+    "start":   "electron .",
+    "build":   "electron-builder --publish never",
+    "build:win":   "electron-builder --win --publish never",
+    "build:mac":   "electron-builder --mac --publish never",
+    "build:linux": "electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "com.bridgecast.desktop",
+    "productName": "BridgeCast",
+    "extraResources": [
+      { "from": "../server/target/release/server", "to": "server", "filter": ["**/*"] }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Network"
+    }
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}

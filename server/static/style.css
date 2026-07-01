@@ -234,3 +234,34 @@ audio { width: 100%; margin: 10px 0; border-radius: 8px; }
 .np-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .m-video { width: 100%; border-radius: 8px; max-height: 200px; background: #000; }
+
+/* ═══════════════════════════════ ROOM CODE + QR ═══════════════════════════════ */
+.logo-sub { font-size: 11px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.label-hint { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: 0; }
+.room-row { display: flex; gap: 8px; align-items: center; }
+.room-row input { flex: 1; }
+.btn-icon { width: 40px; height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color .2s; }
+.btn-icon:hover { border-color: var(--accent2); }
+
+.room-badge { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: rgba(74,144,217,.1); border: 1px solid rgba(74,144,217,.3); border-radius: 8px; font-size: 12px; }
+.room-label { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+#d-room-code { font-weight: 800; font-size: 16px; letter-spacing: 3px; color: var(--accent2); }
+
+/* QR Modal */
+.modal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+.modal-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-width: 340px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,.8); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+#qr-code-area { display: flex; justify-content: center; margin: 8px 0 16px; border-radius: 8px; padding: 12px; background: #1a1a2e; }
+#qr-code-area canvas, #qr-code-area img { border-radius: 4px; }
+.qr-instructions { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.qr-instructions p { margin-bottom: 4px; }
+.qr-instructions strong { color: var(--text); }
+.qr-instructions code { font-family: monospace; background: var(--surface); padding: 2px 6px; border-radius: 4px; color: var(--accent2); font-size: 11px; word-break: break-all; }
+
+/* ═══════════════════════════════ SCREEN SHARE ═══════════════════════════════ */
+.card-desc { color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+.screen-thumb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 20px; border: 2px dashed var(--border); border-radius: 10px; margin-bottom: 16px; color: var(--muted); font-size: 13px; }
+.screen-preview { width: 100%; border-radius: 8px; background: #000; max-height: 280px; object-fit: contain; display: block; }
+.info-note { font-size: 12px; color: var(--muted); padding: 8px 12px; background: var(--surface); border-radius: 6px; border-left: 3px solid var(--border); line-height: 1.5; }
+

@@ -39,6 +39,9 @@ static MAX_REQUESTS: LazyLock<u32> = LazyLock::new(|| {
 pub struct WsQuery {
     /// `PeerRegisterDto` encoded as base64.
     pub d: String,
+    /// Optional room code — if provided, devices with the same code are grouped
+    /// together regardless of IP address. Falls back to IP-based grouping.
+    pub room: Option<String>,
 }
 
 pub async fn ws_handler(
@@ -62,15 +65,20 @@ pub async fn ws_handler(
     };
 
     let ip = {
-        // Prefer the forwarded IP if available.
         let raw_forwarded = headers
             .get("x-forwarded-for")
             .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.split(',').last()) // Get the last component
+            .and_then(|v| v.split(',').last())
             .map(|v| v.trim().to_string())
             .and_then(|v| IpAddr::from_str(&v).ok());
 
         raw_forwarded.unwrap_or(addr.ip())
+    };
+
+    // Use room code for grouping if provided; otherwise fall back to IP subnet.
+    let group = match payload.room {
+        Some(ref room) if room.len() >= 4 => format!("room:{}", room.to_uppercase()),
+        _ => get_ip_group(ip),
     };
 
     Ok(ws.on_upgrade(move |socket| {
@@ -78,7 +86,7 @@ pub async fn ws_handler(
             state.tx_map,
             state.request_count_map,
             socket,
-            get_ip_group(ip),
+            group,
             peer_info,
         )
     }))

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BridgeCast</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BridgeCast">
+</head>
+<body>
+
+<!-- ══════════════ CONNECT SCREEN ══════════════ -->
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="logo">
+      <svg width="52" height="52" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#e94560" stroke-width="2.5"/>
+        <path d="M16 24 L24 13 L32 24 L24 35 Z" fill="#e94560" opacity="0.9"/>
+        <circle cx="24" cy="24" r="5" fill="#fff"/>
+      </svg>
+      <div>
+        <h1>BridgeCast</h1>
+        <p class="tagline">Phone Bridge Mode</p>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>Your Name</label>
+      <input type="text" id="alias-input" placeholder="My Phone" maxlength="32" autocomplete="off"/>
+    </div>
+
+    <div class="field-group">
+      <label>PC Server Address</label>
+      <input type="url" id="server-input" placeholder="ws://192.168.x.x:5000/v1/ws" autocomplete="url" inputmode="url"/>
+      <span class="field-hint">Your PC's local IP — run the server on your PC first</span>
+    </div>
+
+    <div class="field-group">
+      <label>Room Code <span class="optional">(match with PC)</span></label>
+      <input type="text" id="room-input" placeholder="e.g. ABC123" maxlength="8"
+             autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+             style="letter-spacing:4px; font-size:20px; text-align:center; font-weight:700"/>
+    </div>
+
+    <button id="connect-btn" class="btn-primary">Connect to PC</button>
+    <div id="connect-status" class="status-msg"></div>
+
+    <div class="help-text">
+      <strong>How to connect:</strong><br>
+      1. Run BridgeCast server on your PC<br>
+      2. Open BridgeCast on your PC in Chrome<br>
+      3. Copy the room code shown on PC → paste here<br>
+      4. Both devices must be on the same WiFi
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="main-app" class="hidden">
+  <header class="app-header">
+    <div class="header-logo">
+      <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#e94560" stroke-width="2"/>
+        <path d="M16 24 L24 13 L32 24 L24 35 Z" fill="#e94560" opacity="0.9"/>
+        <circle cx="24" cy="24" r="5" fill="#fff"/>
+      </svg>
+      <span>BridgeCast</span>
+    </div>
+    <div class="header-status">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+    <button id="disconnect-btn" class="btn-sm btn-danger">✕</button>
+  </header>
+
+  <nav class="tab-nav" id="m-tabs">
+    <button class="tab-btn active" data-tab="t-audio">🎵</button>
+    <button class="tab-btn" data-tab="t-screen">📺</button>
+    <button class="tab-btn" data-tab="t-gamepad">🎮</button>
+    <button class="tab-btn" data-tab="t-mouse">🖱</button>
+    <button class="tab-btn" data-tab="t-keyboard">⌨️</button>
+  </nav>
+
+  <!-- ── Audio Bridge ── -->
+  <div id="t-audio" class="tab-panel active">
+    <div class="bridge-card">
+      <div class="bridge-icon" id="audio-anim">🔊</div>
+      <h2>Audio Bridge</h2>
+      <p class="bridge-sub">Receives audio/video from your PC over WiFi and plays through your phone speaker or Bluetooth headphones (AirPods, etc.)</p>
+
+      <audio id="m-audio" autoplay playsinline></audio>
+
+      <div id="now-playing" class="now-playing hidden">
+        <div class="np-bars">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div>
+        </div>
+        <div>
+          <div id="np-title" class="np-title">Streaming from PC</div>
+          <div class="np-sub">via WiFi → Bluetooth</div>
+        </div>
+      </div>
+
+      <div id="bridge-status" class="bridge-status">
+        <span class="dot" id="bridge-dot"></span>
+        <span id="bridge-text">Waiting for PC to start streaming…</span>
+      </div>
+
+      <div class="volume-row">
+        <span>🔇</span>
+        <input type="range" id="m-volume" min="0" max="100" value="100" class="vol-slider">
+        <span>🔊</span>
+        <span id="vol-pct">100%</span>
+      </div>
+
+      <div class="bg-audio-notice" id="bg-notice">
+        <span>🎵</span>
+        <span>Audio keeps playing when screen locks</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Screen Viewer ── -->
+  <div id="t-screen" class="tab-panel hidden">
+    <div class="screen-view-wrap">
+      <div id="screen-waiting" class="screen-waiting">
+        <div class="screen-icon">📺</div>
+        <h3>PC Screen Mirror</h3>
+        <p>Start screen share on your PC (Screen Share tab) and it will appear here</p>
+      </div>
+      <div id="screen-active" class="screen-active hidden">
+        <video id="m-screen-video" autoplay playsinline class="screen-video"></video>
+        <div class="screen-controls">
+          <button id="screen-fullscreen-btn" class="btn-secondary">⤢ Fullscreen</button>
+          <span id="screen-res" class="screen-res"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gamepad ── -->
+  <div id="t-gamepad" class="tab-panel hidden">
+    <div class="gamepad-controller">
+      <div class="gp-shoulder-row">
+        <button class="shoulder-btn" data-btn="L2">L2</button>
+        <button class="shoulder-btn" data-btn="R2">R2</button>
+      </div>
+      <div class="gp-shoulder-row">
+        <button class="shoulder-btn" data-btn="L1">L1</button>
+        <button class="shoulder-btn" data-btn="R1">R1</button>
+      </div>
+      <div class="gp-body">
+        <div class="gp-left">
+          <div class="dpad">
+            <button class="dpad-key" data-btn="up"    style="grid-area:u">▲</button>
+            <button class="dpad-key" data-btn="left"  style="grid-area:l">◀</button>
+            <div style="grid-area:c;background:var(--border);border-radius:4px"></div>
+            <button class="dpad-key" data-btn="right" style="grid-area:r">▶</button>
+            <button class="dpad-key" data-btn="down"  style="grid-area:d">▼</button>
+          </div>
+          <div class="stick-zone" id="left-stick">
+            <div class="stick-thumb" id="left-thumb"></div>
+          </div>
+        </div>
+        <div class="gp-center-btns">
+          <button class="center-btn" data-btn="select">⊡</button>
+          <button class="center-btn ps-btn" data-btn="ps">PS</button>
+          <button class="center-btn" data-btn="start">≡</button>
+        </div>
+        <div class="gp-right">
+          <div class="face-grid">
+            <div class="face-row"><button class="face-key tri" data-btn="triangle">△</button></div>
+            <div class="face-row mid"><button class="face-key sq" data-btn="square">□</button><button class="face-key ci" data-btn="circle">○</button></div>
+            <div class="face-row"><button class="face-key cr" data-btn="cross">✕</button></div>
+          </div>
+          <div class="stick-zone" id="right-stick">
+            <div class="stick-thumb" id="right-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Mouse / Touchpad ── -->
+  <div id="t-mouse" class="tab-panel hidden">
+    <div class="touchpad-wrap">
+      <div class="touchpad-label">Drag to move cursor · Tap to click</div>
+      <div id="touchpad" class="touchpad">
+        <div class="tp-cursor" id="tp-cursor"></div>
+        <div class="tp-hint">Touchpad</div>
+      </div>
+      <div class="mouse-btn-row">
+        <button class="mouse-btn" id="mb-left">Left</button>
+        <button class="mouse-btn" id="mb-middle">Middle</button>
+        <button class="mouse-btn" id="mb-right">Right</button>
+      </div>
+      <div class="mouse-btn-row">
+        <button class="mouse-btn" id="mb-su">▲ Scroll</button>
+        <button class="mouse-btn" id="mb-sd">▼ Scroll</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Keyboard ── -->
+  <div id="t-keyboard" class="tab-panel hidden">
+    <div class="kb-wrap">
+      <div class="kb-mods">
+        <button class="mod-btn" data-mod="ctrl">Ctrl</button>
+        <button class="mod-btn" data-mod="alt">Alt</button>
+        <button class="mod-btn" data-mod="shift">Shift</button>
+        <button class="mod-btn" data-mod="win">⊞</button>
+      </div>
+      <div id="vkb"></div>
+      <div class="kb-specials">
+        <button class="spec-btn" data-key="Escape"    data-code="Escape">ESC</button>
+        <button class="spec-btn" data-key="Tab"       data-code="Tab">TAB</button>
+        <button class="spec-btn" data-key="Backspace" data-code="Backspace">⌫</button>
+        <button class="spec-btn" data-key="Enter"     data-code="Enter">↵</button>
+        <button class="spec-btn" data-key="Delete"    data-code="Delete">DEL</button>
+        <button class="spec-btn" data-key="ArrowUp"   data-code="ArrowUp">↑</button>
+        <button class="spec-btn" data-key="ArrowDown" data-code="ArrowDown">↓</button>
+        <button class="spec-btn" data-key="ArrowLeft" data-code="ArrowLeft">←</button>
+        <button class="spec-btn" data-key="ArrowRight" data-code="ArrowRight">→</button>
+        <button class="spec-btn" data-key=" "         data-code="Space">SPACE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
+<script src="app.js"></script>
+</body>
+</html>

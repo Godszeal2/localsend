@@ -1,0 +1,29 @@
+{
+  "appId": "com.bridgecast.app",
+  "appName": "BridgeCast",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "BackgroundMode": {
+      "title": "BridgeCast",
+      "text": "Audio streaming in background",
+      "icon": "notification",
+      "color": "#e94560",
+      "resume": true,
+      "hidden": false,
+      "bigText": false
+    },
+    "KeepAwake": {}
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#0a0a0f"
+  }
+}
