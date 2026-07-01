@@ -5,10 +5,6 @@ import 'package:localsend_app/model/cross_file.dart';
 enum TransferIntent { regular, bridge, screenShare }
 
 TransferIntent inferTransferIntent(List<CrossFile> files) {
-  if (files.any((file) => file.fileType == null)) {
-    return TransferIntent.regular;
-  }
-
   if (files.any((file) => file.fileType == FileType.audio || file.fileType == FileType.video)) {
     return TransferIntent.bridge;
   }
