@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/send_mode.dart';
+import 'package:localsend_app/pages/bridge_workflow_page.dart';
 import 'package:localsend_app/pages/selected_files_page.dart';
 import 'package:localsend_app/pages/tabs/send_tab_vm.dart';
 import 'package:localsend_app/pages/troubleshoot_page.dart';
@@ -18,6 +19,7 @@ import 'package:localsend_app/provider/selection/selected_sending_files_provider
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/favorites.dart';
 import 'package:localsend_app/util/file_size_helper.dart';
+import 'package:localsend_app/util/transfer_intent.dart';
 import 'package:localsend_app/util/native/file_picker.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/widget/big_button.dart';
@@ -169,6 +171,52 @@ class SendTab extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (vm.selectedFiles.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 4),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Icon(
+                              transferIntentIcon(inferTransferIntent(vm.selectedFiles)),
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    transferIntentLabel(inferTransferIntent(vm.selectedFiles)),
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    transferIntentDescription(inferTransferIntent(vm.selectedFiles)),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                await context.push(
+                                  () => BridgeWorkflowPage(
+                                    transferIntent: inferTransferIntent(vm.selectedFiles),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.launch),
+                              label: const Text('Open workflow'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 Row(
                   children: [
                     const SizedBox(width: _horizontalPadding),

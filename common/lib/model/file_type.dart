@@ -8,6 +8,7 @@ part 'file_type.mapper.dart';
 enum FileType {
   image,
   video,
+  audio,
   pdf,
   text,
   apk,

@@ -14,6 +14,7 @@ import 'package:localsend_app/model/cross_file.dart';
 import 'package:localsend_app/model/send_mode.dart';
 import 'package:localsend_app/model/state/send/send_session_state.dart';
 import 'package:localsend_app/model/state/send/sending_file.dart';
+import 'package:localsend_app/pages/bridge_workflow_page.dart';
 import 'package:localsend_app/pages/home_page.dart';
 import 'package:localsend_app/pages/progress_page.dart';
 import 'package:localsend_app/pages/send_page.dart';
@@ -25,6 +26,7 @@ import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/rust/api/http.dart' as rust_http;
 import 'package:localsend_app/rust/api/model.dart' as rust_model;
 import 'package:localsend_app/util/rust.dart';
+import 'package:localsend_app/util/transfer_intent.dart';
 import 'package:localsend_app/widget/dialogs/pin_dialog.dart';
 import 'package:logging/logging.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -59,14 +61,18 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     required Device target,
     required List<CrossFile> files,
     required bool background,
+    TransferIntent? transferIntent,
   }) async {
+    final effectiveTransferIntent = transferIntent ?? inferTransferIntent(files);
+    final effectiveBackground = background || shouldKeepTransferInBackground(effectiveTransferIntent);
+
     final client = ref.read(httpProvider).v2;
     final sessionId = _uuid.v4();
 
     final requestState = SendSessionState(
       sessionId: sessionId,
       remoteSessionId: null,
-      background: background,
+      background: effectiveBackground,
       status: SessionStatus.waiting,
       target: target,
       files: Map.fromEntries(
@@ -132,10 +138,20 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
       state: (_) => requestState,
     );
 
-    if (!background) {
+    if (!effectiveBackground) {
       // ignore: use_build_context_synchronously, unawaited_futures
       Routerino.context.push(
         () => SendPage(showAppBar: false, closeSessionOnClose: true, sessionId: sessionId),
+        transition: RouterinoTransition.fade(),
+      );
+    } else {
+      // ignore: use_build_context_synchronously, unawaited_futures
+      Routerino.context.push(
+        () => BridgeWorkflowPage(
+          transferIntent: effectiveTransferIntent,
+          targetName: target.alias,
+          sessionId: sessionId,
+        ),
         transition: RouterinoTransition.fade(),
       );
     }
