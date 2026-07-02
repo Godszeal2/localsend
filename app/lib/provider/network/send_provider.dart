@@ -14,7 +14,6 @@ import 'package:localsend_app/model/cross_file.dart';
 import 'package:localsend_app/model/send_mode.dart';
 import 'package:localsend_app/model/state/send/send_session_state.dart';
 import 'package:localsend_app/model/state/send/sending_file.dart';
-import 'package:localsend_app/pages/bridge_workflow_page.dart';
 import 'package:localsend_app/pages/home_page.dart';
 import 'package:localsend_app/pages/progress_page.dart';
 import 'package:localsend_app/pages/send_page.dart';
@@ -63,8 +62,7 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     required bool background,
     TransferIntent? transferIntent,
   }) async {
-    final effectiveTransferIntent = transferIntent ?? inferTransferIntent(files);
-    final effectiveBackground = background || shouldKeepTransferInBackground(effectiveTransferIntent);
+    final effectiveBackground = background;
 
     final client = ref.read(httpProvider).v2;
     final sessionId = _uuid.v4();
@@ -142,16 +140,6 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
       // ignore: use_build_context_synchronously, unawaited_futures
       Routerino.context.push(
         () => SendPage(showAppBar: false, closeSessionOnClose: true, sessionId: sessionId),
-        transition: RouterinoTransition.fade(),
-      );
-    } else {
-      // ignore: use_build_context_synchronously, unawaited_futures
-      Routerino.context.push(
-        () => BridgeWorkflowPage(
-          transferIntent: effectiveTransferIntent,
-          targetName: target.alias,
-          sessionId: sessionId,
-        ),
         transition: RouterinoTransition.fade(),
       );
     }

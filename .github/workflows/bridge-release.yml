@@ -7,6 +7,11 @@ on:
         description: "Release tag to create, for example bridge-mode-0.1. Leave blank to use bridge-mode-<run_number>."
         required: false
         type: string
+      build_android:
+        description: "Build and publish the Android APK. Disable this to rerun only the Windows build."
+        required: false
+        default: true
+        type: boolean
   push:
     tags:
       - 'bridge-mode-*'
@@ -16,6 +21,7 @@ permissions:
 
 jobs:
   build-android:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_android }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -129,6 +135,7 @@ jobs:
 
   publish-release:
     needs: [build-android, build-windows]
+    if: ${{ always() && needs.build-windows.result == 'success' && (needs.build-android.result == 'success' || needs.build-android.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Resolve release tag
@@ -146,6 +153,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Download APK artifact
+        if: ${{ needs.build-android.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
           name: android-apk
@@ -158,10 +166,21 @@ jobs:
           path: release-artifacts/windows
 
       - name: Prepare release assets
+        id: assets
+        shell: bash
         run: |
           mkdir -p release-artifacts/android release-artifacts/windows
-          cp release-artifacts/android/app-release.apk release-artifacts/android/localsend-bridge.apk
           test -f release-artifacts/windows/localsend-bridge-windows.zip
+          if [[ -f release-artifacts/android/app-release.apk ]]; then
+            cp release-artifacts/android/app-release.apk release-artifacts/android/localsend-bridge.apk
+            echo "android_asset=release-artifacts/android/localsend-bridge.apk" >> "$GITHUB_OUTPUT"
+            printf 'android_link=%s\n' '<a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge.apk">Download APK</a>' >> "$GITHUB_OUTPUT"
+            echo "release_body=Download the Android APK or Windows build archive for the bridge/screen-share workflow." >> "$GITHUB_OUTPUT"
+          else
+            echo "android_asset=" >> "$GITHUB_OUTPUT"
+            echo "android_link=" >> "$GITHUB_OUTPUT"
+            echo "release_body=Download the Windows build archive for the bridge/screen-share workflow." >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate download landing page
         run: |
@@ -184,7 +203,7 @@ jobs:
               <h1>LocalSend Bridge downloads</h1>
               <p>Choose your build.</p>
               <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge-windows.zip">Download Windows ZIP</a>
-              <a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge.apk">Download APK</a>
+              ${{ steps.assets.outputs.android_link }}
             </div>
           </body>
           </html>
@@ -197,11 +216,11 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Bridge workflow build ${{ steps.release_info.outputs.tag }}
           body: |
-            Download the Android APK or Windows build archive for the bridge/screen-share workflow.
+            ${{ steps.assets.outputs.release_body }}
 
             [Download Windows ZIP](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge-windows.zip)
-            [Download APK](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge.apk)
+            ${{ needs.build-android.result == 'success' && format('[Download APK](https://github.com/Godszeal2/localsend/releases/download/{0}/localsend-bridge.apk)', steps.release_info.outputs.tag) || '' }}
           files: |
-            release-artifacts/android/localsend-bridge.apk
             release-artifacts/windows/localsend-bridge-windows.zip
             release-artifacts/download.html
+            ${{ steps.assets.outputs.android_asset }}
