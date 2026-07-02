@@ -80,10 +80,14 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-install(FILES
-  "${BINARY_NAME}.exe.manifest"
-  "localsend_msix_helper.msix"
-  "install_msix_helper.ps1"
+set(INSTALL_SUPPORT_FILES
+  "${BINARY_NAME}.exe.manifest")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/localsend_msix_helper.msix")
+  list(APPEND INSTALL_SUPPORT_FILES
+    "localsend_msix_helper.msix"
+    "install_msix_helper.ps1")
+endif()
+install(FILES ${INSTALL_SUPPORT_FILES}
   DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
