@@ -9,79 +9,72 @@ class BridgeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsiveListView(
-      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _horizontalPadding,
+        vertical: 20,
+      ),
       children: const [
-        _HeaderCard(),
+        _BridgeHeader(),
         SizedBox(height: 12),
-        _FeatureCard(
+        _BridgeFeatureCard(
           icon: Icons.surround_sound,
           title: 'Audio bridge',
           status: 'Planned',
-          body:
-              'Route PC audio over Wi-Fi to the phone, then let the phone play it through Bluetooth earbuds or speakers. Bass, treble, and gain controls belong here when the streaming engine is added.',
+          body: 'Stream PC audio to the phone over Wi-Fi, then play it through Bluetooth earbuds or speakers.',
         ),
-        _FeatureCard(
+        _BridgeFeatureCard(
           icon: Icons.desktop_windows,
           title: 'Screen share',
           status: 'Planned',
-          body:
-              'Mirror the desktop display to the phone over Wi-Fi. This will be separate from normal file transfer so sending files continues to work like LocalSend normally does.',
+          body: 'Mirror the desktop display to the phone without changing normal LocalSend file transfer.',
         ),
-        _FeatureCard(
+        _BridgeFeatureCard(
           icon: Icons.sports_esports,
           title: 'Remote input',
           status: 'Planned',
-          body:
-              'Use the phone as a gamepad, mouse, and keyboard controller for the desktop app after a trusted bridge session is connected.',
+          body: 'Use the phone as a trusted gamepad, mouse, and keyboard controller for the desktop.',
         ),
-        _FeatureCard(
+        _BridgeFeatureCard(
           icon: Icons.public,
           title: 'Relay / TURN support',
           status: 'Planned',
-          body:
-              'Add an optional relay path for devices on different networks. Until then, keep both devices on the same Wi-Fi for LocalSend transfers.',
+          body: 'Add an optional relay path for bridge sessions when devices are on different networks.',
         ),
       ],
     );
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard();
+class _BridgeHeader extends StatelessWidget {
+  const _BridgeHeader();
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.cast_connected, color: Theme.of(context).colorScheme.primary, size: 32),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Bridge features',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'This tab is the dedicated place for the audio, video, screen-share, and remote-control features. Normal file sending remains in the Send tab.',
-            ),
-          ],
+      child: ListTile(
+        leading: Icon(
+          Icons.cast_connected,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          'Bridge features',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        subtitle: const Text(
+          'Audio, video, screen-share, and remote-control features will live here. Use Send for regular files.',
         ),
       ),
     );
   }
 }
 
-class _FeatureCard extends StatelessWidget {
-  const _FeatureCard({required this.icon, required this.title, required this.status, required this.body});
+class _BridgeFeatureCard extends StatelessWidget {
+  const _BridgeFeatureCard({
+    required this.icon,
+    required this.title,
+    required this.status,
+    required this.body,
+  });
 
   final IconData icon;
   final String title;
@@ -91,34 +84,15 @@ class _FeatureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      Chip(label: Text(status)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(body),
-                ],
-              ),
-            ),
-          ],
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(title),
+        subtitle: Text(body),
+        trailing: Chip(
+          label: Text(status),
         ),
       ),
     );
