@@ -9,10 +9,7 @@ class BridgeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsiveListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: _horizontalPadding,
-        vertical: 20,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
       children: const [
         _HeaderCard(),
         SizedBox(height: 12),
@@ -62,18 +59,12 @@ class _HeaderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.cast_connected,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 32,
-                ),
+                Icon(Icons.cast_connected, color: Theme.of(context).colorScheme.primary, size: 32),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Bridge features',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -90,12 +81,7 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _FeatureCard extends StatelessWidget {
-  const _FeatureCard({
-    required this.icon,
-    required this.title,
-    required this.status,
-    required this.body,
-  });
+  const _FeatureCard({required this.icon, required this.title, required this.status, required this.body});
 
   final IconData icon;
   final String title;
@@ -110,11 +96,7 @@ class _FeatureCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              color: Theme.of(context).colorScheme.primary,
-              size: 28,
-            ),
+            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -125,10 +107,7 @@ class _FeatureCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       Chip(label: Text(status)),
