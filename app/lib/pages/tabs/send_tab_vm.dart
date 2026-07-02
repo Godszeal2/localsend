@@ -16,7 +16,6 @@ import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/favorites.dart';
-import 'package:localsend_app/util/transfer_intent.dart';
 import 'package:localsend_app/widget/dialogs/address_input_dialog.dart';
 import 'package:localsend_app/widget/dialogs/favorite_delete_dialog.dart';
 import 'package:localsend_app/widget/dialogs/favorite_dialog.dart';
@@ -77,14 +76,10 @@ final sendTabVmProvider = ViewProvider((ref) {
         builder: (_) => const AddressInputDialog(),
       );
       if (device != null && context.mounted) {
-        final transferIntent = inferTransferIntent(files);
-        await ref
-            .notifier(sendProvider)
-            .startSession(
+        await ref.notifier(sendProvider).startSession(
               target: device,
               files: files,
               background: false,
-              transferIntent: transferIntent,
             );
       }
     },
@@ -100,14 +95,10 @@ final sendTabVmProvider = ViewProvider((ref) {
           return;
         }
 
-        final transferIntent = inferTransferIntent(files);
-        await ref
-            .notifier(sendProvider)
-            .startSession(
+        await ref.notifier(sendProvider).startSession(
               target: device,
               files: files,
               background: false,
-              transferIntent: transferIntent,
             );
       }
     },
@@ -150,14 +141,10 @@ final sendTabVmProvider = ViewProvider((ref) {
         return;
       }
 
-      final transferIntent = inferTransferIntent(selectedFiles);
-      await ref
-          .notifier(sendProvider)
-          .startSession(
+      await ref.notifier(sendProvider).startSession(
             target: device,
             files: selectedFiles,
             background: false,
-            transferIntent: transferIntent,
           );
     },
     onTapDeviceMultiSend: (context, device) async {
@@ -190,14 +177,10 @@ final sendTabVmProvider = ViewProvider((ref) {
         ref.notifier(sendProvider).closeSession(session.sessionId);
       }
 
-      final transferIntent = inferTransferIntent(files);
-      await ref
-          .notifier(sendProvider)
-          .startSession(
+      await ref.notifier(sendProvider).startSession(
             target: device,
             files: files,
             background: true,
-            transferIntent: transferIntent,
           );
     },
   );
