@@ -25,7 +25,6 @@ import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/rust/api/http.dart' as rust_http;
 import 'package:localsend_app/rust/api/model.dart' as rust_model;
 import 'package:localsend_app/util/rust.dart';
-import 'package:localsend_app/util/transfer_intent.dart';
 import 'package:localsend_app/widget/dialogs/pin_dialog.dart';
 import 'package:logging/logging.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -60,7 +59,6 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     required Device target,
     required List<CrossFile> files,
     required bool background,
-    TransferIntent? transferIntent,
   }) async {
     final effectiveBackground = background;
 
