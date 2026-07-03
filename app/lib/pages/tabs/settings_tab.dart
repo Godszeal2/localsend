@@ -252,6 +252,26 @@ class SettingsTab extends StatelessWidget {
                       ),
                     ],
                   ),
+                  _SettingsSection(
+                    title: 'ZealBridge guide',
+                    children: const [
+                      _GuideItem(
+                        icon: Icons.phone_android,
+                        title: 'Mobile-to-mobile send and receive',
+                        body: 'Keep both phones on the same Wi‑Fi, leave Receive open on the target phone, then use Send to choose files, media, audio, folders, text, or clipboard items.',
+                      ),
+                      _GuideItem(
+                        icon: Icons.cast_connected,
+                        title: 'Direct bridge connection',
+                        body: 'Start ZealBridge on Windows or desktop. Nearby apps use the zealbridge:// connection QR/deep link so playback can continue in the app and in the background; the web endpoint is only a fallback.',
+                      ),
+                      _GuideItem(
+                        icon: Icons.settings_remote,
+                        title: 'Playback, remote, relay, and screen-share',
+                        body: 'Use the ZealBridge tab for muted desktop playback, synced play/pause/seek/speed, relay-ready sessions, remote-control signaling, and screen-share handoff guidance.',
+                      ),
+                    ],
+                  ),
                   if (vm.advanced)
                     _SettingsSection(
                       title: t.settingsTab.send.title,
@@ -708,6 +728,28 @@ class _ButtonEntry extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GuideItem extends StatelessWidget {
+  const _GuideItem({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: ListTile(
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        subtitle: Text(body),
+        tileColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

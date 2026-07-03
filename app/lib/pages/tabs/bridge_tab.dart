@@ -20,6 +20,7 @@ class _BridgeTabState extends State<BridgeTab> {
   HttpServer? _server;
   File? _mediaFile;
   String? _url;
+  String? _directConnectUri;
   String _status = 'Choose any media file, start ZealBridge, then connect a paired device in the app or scan the fallback QR.';
   double _bass = 0;
   double _treble = 0;
@@ -62,11 +63,22 @@ class _BridgeTabState extends State<BridgeTab> {
     server.listen((request) => _handleRequest(request, mediaFile));
     final host = await _bestLanAddress();
     final url = 'http://$host:${server.port}/stream';
+    final directConnectUri = Uri(
+      scheme: 'zealbridge',
+      host: 'connect',
+      queryParameters: {
+        'stream': url,
+        'player': url.replaceFirst('/stream', '/'),
+        'state': url.replaceFirst('/stream', '/state'),
+        'control': url.replaceFirst('/stream', '/control'),
+      },
+    ).toString();
 
     setState(() {
       _server = server;
       _url = url;
-      _status = 'ZealBridge is live in the background. Connect from the app or scan the fallback QR; playback controls sync through this bridge.';
+      _directConnectUri = directConnectUri;
+      _status = 'ZealBridge is live in the background. Nearby ZealBridge apps can connect directly; the QR contains an app deep link with a browser fallback.';
     });
   }
 
@@ -75,6 +87,7 @@ class _BridgeTabState extends State<BridgeTab> {
     setState(() {
       _server = null;
       _url = null;
+      _directConnectUri = null;
       _status = 'ZealBridge stopped.';
     });
   }
@@ -184,6 +197,7 @@ class _BridgeTabState extends State<BridgeTab> {
   @override
   Widget build(BuildContext context) {
     final url = _url;
+    final directConnectUri = _directConnectUri;
     final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'No media selected';
     return ResponsiveListView(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
@@ -210,10 +224,11 @@ class _BridgeTabState extends State<BridgeTab> {
               ]),
               const SizedBox(height: 12),
               SelectableText(_status),
-              if (url != null) ...[
+              if (url != null && directConnectUri != null) ...[
                 const SizedBox(height: 16),
-                Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: url.replaceFirst('/stream', '/')))),
+                Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: directConnectUri))),
                 const SizedBox(height: 8),
+                const Text('Scan with ZealBridge to connect in-app. If deep links are unavailable, use the fallback player endpoint below.'),
                 SelectableText(url.replaceFirst('/stream', '/'), textAlign: TextAlign.center),
               ],
             ]),

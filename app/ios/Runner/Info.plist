@@ -141,6 +141,7 @@
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>ShareMedia-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+                <string>zealbridge</string>
             </array>
         </dict>
     </array>
