@@ -90,6 +90,7 @@ enum FilePickerOption {
       // Desktop
       return [
         FilePickerOption.file,
+        FilePickerOption.media,
         FilePickerOption.folder,
         FilePickerOption.text,
         FilePickerOption.clipboard,
@@ -242,11 +243,16 @@ Future<void> _pickFolder(BuildContext context, Ref ref) async {
 }
 
 Future<void> _pickMedia(BuildContext context, Ref ref) async {
+  if (checkPlatformIsDesktop()) {
+    await _pickFiles(context, ref);
+    return;
+  }
+
   if (checkPlatform([TargetPlatform.android])) {
     await PhotoManager.requestPermissionExtend(
       requestOption: const PermissionRequestOption(
         androidPermission: AndroidPermission(
-          type: RequestType.common,
+          type: RequestType.all,
           mediaLocation: true,
         ),
       ),
@@ -258,7 +264,7 @@ Future<void> _pickMedia(BuildContext context, Ref ref) async {
   final oldBrightness = Theme.of(context).brightness;
   final List<AssetEntity>? result = await AssetPicker.pickAssets(
     context,
-    pickerConfig: const AssetPickerConfig(maxAssets: 999, textDelegate: TranslatedAssetPickerTextDelegate()),
+    pickerConfig: const AssetPickerConfig(maxAssets: 999, requestType: RequestType.all, textDelegate: TranslatedAssetPickerTextDelegate()),
   );
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {

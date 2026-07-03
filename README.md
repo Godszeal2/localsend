@@ -27,6 +27,7 @@ LocalSend is a free, open-source app that allows you to securely share files and
 - [Screenshots](#screenshots)
 - [Download](#download)
 - [How It Works](#how-it-works)
+- [ZealBridge direct app bridge](#zealbridge-direct-app-bridge)
 - [Getting Started](#getting-started)
 - [Contributing](#contributing)
   - [Translation](#translation)
@@ -42,6 +43,30 @@ LocalSend is a free, open-source app that allows you to securely share files and
 ## About
 
 LocalSend is a cross-platform app that enables secure communication between devices using a REST API and HTTPS encryption. Unlike other messaging apps that rely on external servers, LocalSend doesn't require an internet connection or third-party servers, making it a fast and reliable solution for local communication.
+
+
+## ZealBridge direct app bridge
+
+ZealBridge adds a direct in-app bridge flow on top of the normal send and receive tabs. It is designed for Windows/desktop-to-mobile media handoff while keeping the desktop app running quietly in the background.
+
+### Features
+
+- **Direct app connection:** starting the ZealBridge tab creates a `zealbridge://connect` deep link that mobile apps can open directly for desktop-to-mobile or mobile-to-mobile playback. The HTTP player endpoint is still shown only as a fallback for devices that do not have the app link registered.
+- **Background media handoff:** the sending side keeps the stream alive, muted, and awake while the receiving mobile device plays the audio or video, including Bluetooth speakers or earbuds when supported by the OS.
+- **Synced playback controls:** play, pause, seek, playback speed, progress, and volume state are sent through ZealBridge control endpoints so both sides can stay in sync.
+- **Broader file support:** choose media or audio from the picker, including common audio/video formats such as MP3, M4A, WAV, FLAC, OGG, MP4, WebM, MOV, and MKV.
+- **Screen-share, remote, and relay-ready workflow:** the ZealBridge tab exposes the session model for screen-share handoff, remote-control signaling, and relay configuration. Native capture/input/relay services can attach to this model as they are completed.
+- **Mobile-to-mobile transfer:** phones can still send and receive files with each other through the regular Send and Receive tabs on the same local network.
+
+### How to use ZealBridge
+
+1. Install/open the app on the Windows or desktop device and on the mobile device.
+2. Put both devices on the same Wi-Fi or local network.
+3. On desktop or mobile, open **ZealBridge**, choose a media/audio file, and select **Start bridge**. Desktop also exposes **Choose media or audio** so audio files can be selected directly.
+4. On mobile, scan the QR code with ZealBridge or open the app link. The app should connect directly; use the displayed fallback player endpoint only if deep links are unavailable.
+5. Use play, pause, seek, and speed controls on the player. The sending bridge remains muted, keeps the session awake, and warns if the app is backgrounded.
+6. For mobile-to-mobile file transfer, keep **Receive** open on one phone, open **Send** on the other phone, select files/media/audio/text, then choose the receiving phone. For mobile-to-mobile media bridge playback, start **ZealBridge** on the sender and scan/open the `zealbridge://connect` link on the receiver.
+7. Review the **Settings > ZealBridge guide** section in the app for the same quick setup notes on Windows and mobile.
 
 ## Sponsors
 

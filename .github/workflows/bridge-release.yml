@@ -60,7 +60,7 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -alias bridge \
-            -dname "CN=Bridge Release, OU=CI, O=LocalSend, L=CI, S=CI, C=US" \
+            -dname "CN=Bridge Release, OU=CI, O=ZealBridge, L=CI, S=CI, C=US" \
             -noprompt
           cat > app/android/key.properties <<'EOF'
           storePassword=bridge-release
@@ -121,16 +121,18 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path windows-dist | Out-Null
           Copy-Item app/build/windows/x64/runner/Release/* windows-dist -Recurse -Force
-          if (Test-Path "windows-dist/localsend_bridge.exe") {
-            Rename-Item windows-dist/localsend_bridge.exe windows-dist/LocalSend-Bridge.exe
+          if (Test-Path "windows-dist/zealbridge.exe") {
+            Rename-Item -Path "windows-dist/zealbridge.exe" -NewName "ZealBridge.exe" -Force
+          } elseif (Test-Path "windows-dist/localsend_bridge.exe") {
+            Rename-Item -Path "windows-dist/localsend_bridge.exe" -NewName "ZealBridge.exe" -Force
           }
-          Compress-Archive -Path windows-dist/* -DestinationPath LocalSend-Bridge-Windows.zip -Force
+          Compress-Archive -Path windows-dist/* -DestinationPath ZealBridge-Windows.zip -Force
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: LocalSend-Bridge-Windows.zip
+          path: ZealBridge-Windows.zip
           retention-days: 14
 
   publish-release:
@@ -170,11 +172,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-artifacts/android release-artifacts/windows
-          test -f release-artifacts/windows/LocalSend-Bridge-Windows.zip
+          test -f release-artifacts/windows/ZealBridge-Windows.zip
           if [[ -f release-artifacts/android/app-release.apk ]]; then
-            cp release-artifacts/android/app-release.apk release-artifacts/android/LocalSend-Bridge.apk
-            echo "android_asset=release-artifacts/android/LocalSend-Bridge.apk" >> "$GITHUB_OUTPUT"
-            printf 'android_link=%s\n' '<a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge.apk">Download APK</a>' >> "$GITHUB_OUTPUT"
+            cp release-artifacts/android/app-release.apk release-artifacts/android/ZealBridge.apk
+            echo "android_asset=release-artifacts/android/ZealBridge.apk" >> "$GITHUB_OUTPUT"
+            printf 'android_link=%s\n' '<a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/ZealBridge.apk">Download APK</a>' >> "$GITHUB_OUTPUT"
             echo "release_body=Download the Android APK or Windows build archive for the bridge/screen-share workflow." >> "$GITHUB_OUTPUT"
           else
             echo "android_asset=" >> "$GITHUB_OUTPUT"
@@ -190,7 +192,7 @@ jobs:
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>LocalSend Bridge downloads</title>
+            <title>ZealBridge downloads</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }
               .card { max-width: 720px; margin: 4rem auto; padding: 2rem; background: #111827; border-radius: 16px; }
@@ -200,9 +202,9 @@ jobs:
           </head>
           <body>
             <div class="card">
-              <h1>LocalSend Bridge downloads</h1>
+              <h1>ZealBridge downloads</h1>
               <p>Choose your build.</p>
-              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge-Windows.zip">Download Windows ZIP</a>
+              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/ZealBridge-Windows.zip">Download Windows ZIP</a>
               ${{ steps.assets.outputs.android_link }}
             </div>
           </body>
@@ -218,9 +220,9 @@ jobs:
           body: |
             ${{ steps.assets.outputs.release_body }}
 
-            [Download Windows ZIP](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge-Windows.zip)
-            ${{ needs.build-android.result == 'success' && format('[Download APK](https://github.com/Godszeal2/localsend/releases/download/{0}/LocalSend-Bridge.apk)', steps.release_info.outputs.tag) || '' }}
+            [Download Windows ZIP](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/ZealBridge-Windows.zip)
+            ${{ needs.build-android.result == 'success' && format('[Download APK](https://github.com/Godszeal2/localsend/releases/download/{0}/ZealBridge.apk)', steps.release_info.outputs.tag) || '' }}
           files: |
-            release-artifacts/windows/LocalSend-Bridge-Windows.zip
+            release-artifacts/windows/ZealBridge-Windows.zip
             release-artifacts/download.html
             ${{ steps.assets.outputs.android_asset }}

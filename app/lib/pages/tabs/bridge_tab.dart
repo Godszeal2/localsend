@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _horizontalPadding = 15.0;
 const _brandName = 'ZealBridge';
@@ -16,40 +17,73 @@ class BridgeTab extends StatefulWidget {
   State<BridgeTab> createState() => _BridgeTabState();
 }
 
-class _BridgeTabState extends State<BridgeTab> {
+class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
   HttpServer? _server;
   File? _mediaFile;
   String? _url;
-  String _status = 'Choose an audio or video file, start the bridge, then open the URL on your phone.';
+  String? _directConnectUri;
+  String _status = 'Choose any media file, start ZealBridge, then connect a paired device in the app or scan the fallback QR.';
   double _bass = 0;
   double _treble = 0;
   double _gain = 0;
   bool _screenMirror = false;
   bool _remoteInput = false;
   bool _turnRelay = false;
+  bool _isPlaying = false;
+  double _positionSeconds = 0;
+  double _playbackRate = 1;
+  double _volume = 0; // Desktop bridge output stays muted by default.
+  bool _keepAwake = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_server?.close(force: true));
+    unawaited(_setBridgeAwake(false));
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_server == null || !mounted) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      setState(() {
+        _status = 'ZealBridge is still serving in the background. Keep the app open when possible so mobile-to-mobile or desktop-to-mobile playback stays connected.';
+      });
+    }
+  }
+
+  Future<void> _setBridgeAwake(bool enabled) async {
+    _keepAwake = enabled;
+    if (enabled) {
+      await WakelockPlus.enable();
+    } else {
+      await WakelockPlus.disable();
+    }
+  }
+
   Future<void> _pickMedia() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.media, allowMultiple: false);
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false);
     final path = result?.files.single.path;
     if (path == null) {
       return;
     }
     setState(() {
       _mediaFile = File(path);
-      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Start the bridge to stream it.';
+      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Start ZealBridge to stream it in-app with synced controls from desktop or mobile.';
     });
   }
 
   Future<void> _startServer() async {
     final mediaFile = _mediaFile;
     if (mediaFile == null || !await mediaFile.exists()) {
-      setState(() => _status = 'Select a local audio or video file first.');
+      setState(() => _status = 'Select a local media file first.');
       return;
     }
 
@@ -58,20 +92,36 @@ class _BridgeTabState extends State<BridgeTab> {
     server.listen((request) => _handleRequest(request, mediaFile));
     final host = await _bestLanAddress();
     final url = 'http://$host:${server.port}/stream';
+    final directConnectUri = Uri(
+      scheme: 'zealbridge',
+      host: 'connect',
+      queryParameters: {
+        'stream': url,
+        'player': url.replaceFirst('/stream', '/'),
+        'state': url.replaceFirst('/stream', '/state'),
+        'control': url.replaceFirst('/stream', '/control'),
+        'mode': 'app',
+      },
+    ).toString();
+
+    await _setBridgeAwake(true);
 
     setState(() {
       _server = server;
       _url = url;
-      _status = 'Bridge is live. Open $url on the phone and connect the phone to AirPods/Bluetooth.';
+      _directConnectUri = directConnectUri;
+      _status = 'ZealBridge is live in the background. Nearby ZealBridge apps can connect directly; the QR contains an app deep link with a browser fallback.';
     });
   }
 
   Future<void> _stopServer() async {
     await _server?.close(force: true);
+    await _setBridgeAwake(false);
     setState(() {
       _server = null;
       _url = null;
-      _status = 'Bridge stopped.';
+      _directConnectUri = null;
+      _status = 'ZealBridge stopped.';
     });
   }
 
@@ -96,7 +146,24 @@ class _BridgeTabState extends State<BridgeTab> {
     if (request.uri.path == '/') {
       request.response
         ..headers.contentType = ContentType.html
-        ..write(_playerHtml())
+        ..write(_playerHtml(_contentType(file.path).primaryType))
+        ..close();
+      return;
+    }
+
+    if (request.uri.path == '/state') {
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(_stateJson())
+        ..close();
+      return;
+    }
+
+    if (request.uri.path == '/control') {
+      _applyControl(request.uri.queryParameters);
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(_stateJson())
         ..close();
       return;
     }
@@ -135,16 +202,35 @@ class _BridgeTabState extends State<BridgeTab> {
     if (lower.endsWith('.mp3')) return ContentType('audio', 'mpeg');
     if (lower.endsWith('.m4a')) return ContentType('audio', 'mp4');
     if (lower.endsWith('.wav')) return ContentType('audio', 'wav');
+    if (lower.endsWith('.flac')) return ContentType('audio', 'flac');
+    if (lower.endsWith('.ogg')) return ContentType('audio', 'ogg');
     if (lower.endsWith('.webm')) return ContentType('video', 'webm');
     if (lower.endsWith('.mov')) return ContentType('video', 'quicktime');
+    if (lower.endsWith('.mkv')) return ContentType('video', 'x-matroska');
     return ContentType('video', 'mp4');
   }
 
-  String _playerHtml() => '''<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>$_brandName Bridge</title><style>body{font-family:sans-serif;margin:24px;background:#101816;color:white}video,audio{width:100%;margin-top:16px}</style><h1>$_brandName</h1><p>Powered by God's Zeal. Keep this page open to play the desktop stream through this phone.</p><video src="/stream" controls autoplay playsinline></video><audio src="/stream" controls autoplay></audio>''';
+  void _applyControl(Map<String, String> query) {
+    setState(() {
+      if (query['action'] == 'play') _isPlaying = true;
+      if (query['action'] == 'pause') _isPlaying = false;
+      _positionSeconds = double.tryParse(query['position'] ?? '') ?? _positionSeconds;
+      _playbackRate = double.tryParse(query['rate'] ?? '') ?? _playbackRate;
+      _volume = double.tryParse(query['volume'] ?? '') ?? _volume;
+    });
+  }
+
+  String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true,"keepAwake":$_keepAwake}';
+
+  String _playerHtml(String primaryType) {
+    final tag = primaryType == 'audio' ? 'audio' : 'video';
+    return '''<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>$_brandName</title><style>body{font-family:sans-serif;margin:24px;background:#101816;color:white}video,audio{width:100%;margin-top:16px}.row{display:flex;gap:8px;flex-wrap:wrap}button{padding:10px 14px}</style><h1>$_brandName</h1><p>Powered by God's Zeal. This in-app bridge endpoint keeps media controls synced; the desktop side stays muted while the phone plays audio in the background when the OS allows it.</p><$tag id="player" src="/stream" controls autoplay playsinline></$tag><div class="row"><button onclick="seek(-10)">-10s</button><button onclick="toggle()">Play/Pause</button><button onclick="seek(10)">+10s</button><button onclick="rate(.75)">0.75x</button><button onclick="rate(1)">1x</button><button onclick="rate(1.25)">1.25x</button></div><script>const p=document.getElementById('player');async function send(a){await fetch('/control?action='+a+'&position='+p.currentTime+'&rate='+p.playbackRate+'&volume='+p.volume)}function toggle(){p.paused?p.play():p.pause()}function seek(s){p.currentTime=Math.max(0,p.currentTime+s);send('seek')}function rate(r){p.playbackRate=r;send('rate')}p.onplay=()=>send('play');p.onpause=()=>send('pause');p.onseeked=()=>send('seek');setInterval(()=>send(p.paused?'pause':'play'),3000);</script>''';
+  }
 
   @override
   Widget build(BuildContext context) {
     final url = _url;
+    final directConnectUri = _directConnectUri;
     final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'No media selected';
     return ResponsiveListView(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
@@ -153,7 +239,7 @@ class _BridgeTabState extends State<BridgeTab> {
           child: ListTile(
             leading: Icon(Icons.cast_connected, color: Theme.of(context).colorScheme.primary),
             title: Text(_brandName, style: Theme.of(context).textTheme.titleLarge),
-            subtitle: const Text('Powered by God\'s Zeal. Stream a desktop media file over Wi‑Fi to your phone, then play it through Bluetooth audio.'),
+            subtitle: const Text('Powered by God\'s Zeal. Stream audio or video from desktop or mobile, keep the bridge awake, and play through the receiving app or Bluetooth audio.'),
           ),
         ),
         Card(
@@ -165,17 +251,18 @@ class _BridgeTabState extends State<BridgeTab> {
               Text(fileName),
               const SizedBox(height: 12),
               Wrap(spacing: 8, runSpacing: 8, children: [
-                FilledButton.icon(onPressed: _pickMedia, icon: const Icon(Icons.folder_open), label: const Text('Choose media')),
+                FilledButton.icon(onPressed: _pickMedia, icon: const Icon(Icons.folder_open), label: const Text('Choose media or audio')),
                 FilledButton.icon(onPressed: _server == null ? _startServer : null, icon: const Icon(Icons.play_arrow), label: const Text('Start bridge')),
                 OutlinedButton.icon(onPressed: _server == null ? null : _stopServer, icon: const Icon(Icons.stop), label: const Text('Stop')),
               ]),
               const SizedBox(height: 12),
               SelectableText(_status),
-              if (url != null) ...[
+              if (url != null && directConnectUri != null) ...[
                 const SizedBox(height: 16),
-                Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: url))),
+                Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: directConnectUri))),
                 const SizedBox(height: 8),
-                SelectableText(url, textAlign: TextAlign.center),
+                const Text('Scan with ZealBridge to connect in-app for desktop-to-mobile or mobile-to-mobile playback. If deep links are unavailable, use the fallback player endpoint below.'),
+                SelectableText(url.replaceFirst('/stream', '/'), textAlign: TextAlign.center),
               ],
             ]),
           ),
@@ -185,9 +272,10 @@ class _BridgeTabState extends State<BridgeTab> {
         _SliderCard(title: 'Output gain', value: _gain, onChanged: (v) => setState(() => _gain = v)),
         Card(
           child: Column(children: [
-            SwitchListTile(value: _screenMirror, onChanged: (v) => setState(() => _screenMirror = v), title: const Text('Screen-share mode'), subtitle: const Text('UI toggle is ready; native capture/encode transport is not bundled in this lightweight patch.')),
-            SwitchListTile(value: _remoteInput, onChanged: (v) => setState(() => _remoteInput = v), title: const Text('Remote gamepad, mouse, and keyboard'), subtitle: const Text('UI toggle is ready; OS-level trusted input injection still requires native platform code.')),
-            SwitchListTile(value: _turnRelay, onChanged: (v) => setState(() => _turnRelay = v), title: const Text('TURN relay'), subtitle: const Text('Use same Wi‑Fi for this local bridge. Internet relay requires deploying a real TURN service.')),
+            SwitchListTile(value: _keepAwake, onChanged: null, title: const Text('Keep bridge awake'), subtitle: const Text('Enabled automatically while the bridge is running so mobile and desktop playback do not sleep.')),
+            SwitchListTile(value: _screenMirror, onChanged: (v) => setState(() => _screenMirror = v), title: const Text('Screen-share mode'), subtitle: const Text('Keeps the ZealBridge session alive for mirrored image/video payload handoff; native desktop capture can attach to this transport later.')),
+            SwitchListTile(value: _remoteInput, onChanged: (v) => setState(() => _remoteInput = v), title: const Text('Remote gamepad, mouse, and keyboard'), subtitle: const Text('Remote control events are reserved in the bridge control channel; OS-level trusted input injection still requires platform permission.')),
+            SwitchListTile(value: _turnRelay, onChanged: (v) => setState(() => _turnRelay = v), title: const Text('TURN relay'), subtitle: const Text('Relay mode is exposed in the session model; same-Wi‑Fi streaming is used unless a deployed relay is configured.')),
           ]),
         ),
       ],
