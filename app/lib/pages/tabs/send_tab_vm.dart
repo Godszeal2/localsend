@@ -128,8 +128,8 @@ final sendTabVmProvider = ViewProvider((ref) {
         );
         if (result == true) {
           await ref.redux(favoritesProvider).dispatchAsync(
-                RemoveFavoriteAction(deviceFingerprint: device.fingerprint),
-              );
+            RemoveFavoriteAction(deviceFingerprint: device.fingerprint),
+          );
         }
       } else {
         await showDialog(
