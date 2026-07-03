@@ -35,8 +35,7 @@ class SendTabVm {
   final Future<void> Function(BuildContext context, SendMode mode) onTapSendMode;
   final Future<void> Function(BuildContext context, Device device) onToggleFavorite;
   final Future<void> Function(BuildContext context, Device device) onTapDevice;
-  final Future<void> Function(BuildContext context, Device device)
-      onTapDeviceMultiSend;
+  final Future<void> Function(BuildContext context, Device device) onTapDeviceMultiSend;
 
   const SendTabVm({
     required this.sendMode,
@@ -128,8 +127,10 @@ final sendTabVmProvider = ViewProvider((ref) {
         );
         if (result == true) {
           await ref.redux(favoritesProvider).dispatchAsync(
-                RemoveFavoriteAction(deviceFingerprint: device.fingerprint),
-              );
+            RemoveFavoriteAction(
+              deviceFingerprint: device.fingerprint,
+            ),
+          );
         }
       } else {
         await showDialog(
