@@ -122,7 +122,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path windows-dist | Out-Null
           Copy-Item app/build/windows/x64/runner/Release/* windows-dist -Recurse -Force
           if (Test-Path "windows-dist/localsend_bridge.exe") {
-            Rename-Item windows-dist/localsend_bridge.exe windows-dist/LocalSend-Bridge.exe
+            Rename-Item -Path "windows-dist/localsend_bridge.exe" -NewName "LocalSend-Bridge.exe" -Force
           }
           Compress-Archive -Path windows-dist/* -DestinationPath LocalSend-Bridge-Windows.zip -Force
 
