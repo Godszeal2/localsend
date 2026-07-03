@@ -246,7 +246,7 @@ Future<void> _pickMedia(BuildContext context, Ref ref) async {
     await PhotoManager.requestPermissionExtend(
       requestOption: const PermissionRequestOption(
         androidPermission: AndroidPermission(
-          type: RequestType.common,
+          type: RequestType.all,
           mediaLocation: true,
         ),
       ),
@@ -258,7 +258,7 @@ Future<void> _pickMedia(BuildContext context, Ref ref) async {
   final oldBrightness = Theme.of(context).brightness;
   final List<AssetEntity>? result = await AssetPicker.pickAssets(
     context,
-    pickerConfig: const AssetPickerConfig(maxAssets: 999, textDelegate: TranslatedAssetPickerTextDelegate()),
+    pickerConfig: const AssetPickerConfig(maxAssets: 999, requestType: RequestType.all, textDelegate: TranslatedAssetPickerTextDelegate()),
   );
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
