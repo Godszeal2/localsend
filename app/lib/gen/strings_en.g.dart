@@ -47,7 +47,7 @@ class Translations implements BaseTranslations<AppLocale, Translations> {
   String get locale => 'English';
 
   /// en: 'LocalSend'
-  String get appName => 'LocalSend';
+  String get appName => 'ZealBridge';
 
   late final TranslationsGeneralEn general = TranslationsGeneralEn.internal(_root);
   late final TranslationsReceiveTabEn receiveTab = TranslationsReceiveTabEn.internal(_root);
