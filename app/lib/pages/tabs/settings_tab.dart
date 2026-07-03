@@ -263,7 +263,7 @@ class SettingsTab extends StatelessWidget {
                       _GuideItem(
                         icon: Icons.cast_connected,
                         title: 'Direct bridge connection',
-                        body: 'Start ZealBridge on Windows, desktop, or mobile. Nearby apps use the zealbridge:// connection QR/deep link so playback can continue in the app; the bridge automatically keeps the screen awake while running.',
+                        body: 'Start ZealBridge on Windows, desktop, or mobile. Nearby apps appear by name on the same Wi‑Fi, then connect with the ZealBridge in-app QR/deep link; the bridge automatically keeps the screen awake while running.',
                       ),
                       _GuideItem(
                         icon: Icons.settings_remote,

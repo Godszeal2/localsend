@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:common/model/device.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
+import 'package:localsend_app/provider/network/scan_facade.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:refena_flutter/refena_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _horizontalPadding = 15.0;
@@ -17,12 +21,13 @@ class BridgeTab extends StatefulWidget {
   State<BridgeTab> createState() => _BridgeTabState();
 }
 
-class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
+class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserver {
   HttpServer? _server;
   File? _mediaFile;
   String? _url;
   String? _directConnectUri;
-  String _status = 'Choose any media file, start ZealBridge, then connect a paired device in the app or scan the fallback QR.';
+  Device? _targetDevice;
+  String _status = 'Choose any media file, pick a nearby ZealBridge app, then start the bridge entirely in-app.';
   double _bass = 0;
   double _treble = 0;
   double _gain = 0;
@@ -39,6 +44,9 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ensureRef((ref) async {
+      await ref.global.dispatchAsync(StartSmartScan(forceLegacy: false));
+    });
   }
 
   @override
@@ -76,7 +84,7 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
     }
     setState(() {
       _mediaFile = File(path);
-      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Start ZealBridge to stream it in-app with synced controls from desktop or mobile.';
+      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Pick a nearby device, then start ZealBridge in-app.';
     });
   }
 
@@ -101,6 +109,7 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
         'state': url.replaceFirst('/stream', '/state'),
         'control': url.replaceFirst('/stream', '/control'),
         'mode': 'app',
+        if (_targetDevice != null) 'target': _targetDevice!.alias,
       },
     ).toString();
 
@@ -110,7 +119,9 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
       _server = server;
       _url = url;
       _directConnectUri = directConnectUri;
-      _status = 'ZealBridge is live in the background. Nearby ZealBridge apps can connect directly; the QR contains an app deep link with a browser fallback.';
+      _status = _targetDevice == null
+          ? 'ZealBridge is live in-app. Pick or scan from the receiving app; no browser URL is required.'
+          : 'ZealBridge is live in-app for ${_targetDevice!.alias}. Keep both apps open for synced playback.';
     });
   }
 
@@ -232,6 +243,7 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
     final url = _url;
     final directConnectUri = _directConnectUri;
     final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'No media selected';
+    final nearbyDevices = context.ref.watch(nearbyDevicesProvider).allDevices.values.toList();
     return ResponsiveListView(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
       children: [
@@ -261,11 +273,28 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
                 const SizedBox(height: 16),
                 Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: directConnectUri))),
                 const SizedBox(height: 8),
-                const Text('Scan with ZealBridge to connect in-app for desktop-to-mobile or mobile-to-mobile playback. If deep links are unavailable, use the fallback player endpoint below.'),
-                SelectableText(url.replaceFirst('/stream', '/'), textAlign: TextAlign.center),
+                const Text('Scan inside ZealBridge to connect the receiving app. No browser URL is shown or required.'),
               ],
             ]),
           ),
+        ),
+        _InAppPlayerCard(
+          isPlaying: _isPlaying,
+          positionSeconds: _positionSeconds,
+          playbackRate: _playbackRate,
+          onPlayPause: () => _applyControl({'action': _isPlaying ? 'pause' : 'play'}),
+          onSeek: (value) => _applyControl({'action': 'seek', 'position': value.toString()}),
+          onSkip: (delta) => _applyControl({'action': 'seek', 'position': (_positionSeconds + delta).clamp(0, 86400).toString()}),
+          onRate: (rate) => _applyControl({'action': 'rate', 'rate': rate.toString()}),
+        ),
+        _NearbyBridgeDevicesCard(
+          devices: nearbyDevices,
+          selectedDevice: _targetDevice,
+          onRefresh: () async => ref.global.dispatchAsync(StartSmartScan(forceLegacy: false)),
+          onSelect: (device) => setState(() {
+            _targetDevice = device;
+            _status = 'Selected ${device.alias}. Start ZealBridge to connect inside the app.';
+          }),
         ),
         _SliderCard(title: 'Bass boost', value: _bass, onChanged: (v) => setState(() => _bass = v)),
         _SliderCard(title: 'Treble boost', value: _treble, onChanged: (v) => setState(() => _treble = v)),
@@ -279,6 +308,135 @@ class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
           ]),
         ),
       ],
+    );
+  }
+}
+
+class _InAppPlayerCard extends StatelessWidget {
+  const _InAppPlayerCard({
+    required this.isPlaying,
+    required this.positionSeconds,
+    required this.playbackRate,
+    required this.onPlayPause,
+    required this.onSeek,
+    required this.onSkip,
+    required this.onRate,
+  });
+
+  final bool isPlaying;
+  final double positionSeconds;
+  final double playbackRate;
+  final VoidCallback onPlayPause;
+  final ValueChanged<double> onSeek;
+  final ValueChanged<double> onSkip;
+  final ValueChanged<double> onRate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('In-app audio and video player', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            const Text('Use these controls on Windows or mobile. They update the same ZealBridge control state used by the receiving app.'),
+            Slider(
+              value: positionSeconds.clamp(0, 86400).toDouble(),
+              min: 0,
+              max: 86400,
+              label: _formatDuration(positionSeconds),
+              onChanged: onSeek,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(onPressed: () => onSkip(-10), icon: const Icon(Icons.replay_10)),
+                FilledButton.icon(
+                  onPressed: onPlayPause,
+                  icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                  label: Text(isPlaying ? 'Pause' : 'Play'),
+                ),
+                IconButton(onPressed: () => onSkip(10), icon: const Icon(Icons.forward_10)),
+              ],
+            ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              children: [
+                for (final rate in const [0.75, 1.0, 1.25, 1.5, 2.0])
+                  ChoiceChip(
+                    label: Text('${rate}x'),
+                    selected: playbackRate == rate,
+                    onSelected: (_) => onRate(rate),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(double seconds) {
+    final duration = Duration(seconds: seconds.round());
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final secs = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$minutes:$secs' : '$minutes:$secs';
+  }
+}
+
+class _NearbyBridgeDevicesCard extends StatelessWidget {
+  const _NearbyBridgeDevicesCard({
+    required this.devices,
+    required this.selectedDevice,
+    required this.onRefresh,
+    required this.onSelect,
+  });
+
+  final List<Device> devices;
+  final Device? selectedDevice;
+  final Future<void> Function() onRefresh;
+  final ValueChanged<Device> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('Nearby ZealBridge apps', style: Theme.of(context).textTheme.titleMedium)),
+                IconButton(onPressed: onRefresh, icon: const Icon(Icons.refresh)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('Select a device discovered on the same Wi‑Fi, then start the bridge. This mirrors the Send/Receive nearby-device flow and avoids opening URLs.'),
+            const SizedBox(height: 8),
+            if (devices.isEmpty)
+              const ListTile(
+                leading: Icon(Icons.wifi_find),
+                title: Text('No nearby devices yet'),
+                subtitle: Text('Open the app on the other phone or desktop and keep it on the same Wi‑Fi.'),
+              )
+            else
+              ...devices.map(
+                (device) => RadioListTile<String>(
+                  value: device.fingerprint,
+                  groupValue: selectedDevice?.fingerprint,
+                  onChanged: (_) => onSelect(device),
+                  title: Text(device.alias),
+                  subtitle: Text('${device.deviceModel ?? device.deviceType.name} • ${device.ip ?? device.signalingId ?? 'nearby'}'),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
