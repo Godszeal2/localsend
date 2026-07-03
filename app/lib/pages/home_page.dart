@@ -34,7 +34,7 @@ enum HomeTab {
       case HomeTab.send:
         return t.sendTab.title;
       case HomeTab.bridge:
-        return 'Bridge';
+        return 'ZealBridge';
       case HomeTab.settings:
         return t.settingsTab.title;
     }
