@@ -121,16 +121,16 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path windows-dist | Out-Null
           Copy-Item app/build/windows/x64/runner/Release/* windows-dist -Recurse -Force
-          if (Test-Path "windows-dist/localsend.exe") {
-            Rename-Item windows-dist/localsend.exe windows-dist/localsend-bridge.exe
+          if (Test-Path "windows-dist/localsend_bridge.exe") {
+            Rename-Item windows-dist/localsend_bridge.exe windows-dist/LocalSend-Bridge.exe
           }
-          Compress-Archive -Path windows-dist/* -DestinationPath localsend-bridge-windows.zip -Force
+          Compress-Archive -Path windows-dist/* -DestinationPath LocalSend-Bridge-Windows.zip -Force
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: localsend-bridge-windows.zip
+          path: LocalSend-Bridge-Windows.zip
           retention-days: 14
 
   publish-release:
@@ -170,11 +170,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-artifacts/android release-artifacts/windows
-          test -f release-artifacts/windows/localsend-bridge-windows.zip
+          test -f release-artifacts/windows/LocalSend-Bridge-Windows.zip
           if [[ -f release-artifacts/android/app-release.apk ]]; then
-            cp release-artifacts/android/app-release.apk release-artifacts/android/localsend-bridge.apk
-            echo "android_asset=release-artifacts/android/localsend-bridge.apk" >> "$GITHUB_OUTPUT"
-            printf 'android_link=%s\n' '<a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge.apk">Download APK</a>' >> "$GITHUB_OUTPUT"
+            cp release-artifacts/android/app-release.apk release-artifacts/android/LocalSend-Bridge.apk
+            echo "android_asset=release-artifacts/android/LocalSend-Bridge.apk" >> "$GITHUB_OUTPUT"
+            printf 'android_link=%s\n' '<a class="button secondary" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge.apk">Download APK</a>' >> "$GITHUB_OUTPUT"
             echo "release_body=Download the Android APK or Windows build archive for the bridge/screen-share workflow." >> "$GITHUB_OUTPUT"
           else
             echo "android_asset=" >> "$GITHUB_OUTPUT"
@@ -202,7 +202,7 @@ jobs:
             <div class="card">
               <h1>LocalSend Bridge downloads</h1>
               <p>Choose your build.</p>
-              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge-windows.zip">Download Windows ZIP</a>
+              <a class="button" href="https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge-Windows.zip">Download Windows ZIP</a>
               ${{ steps.assets.outputs.android_link }}
             </div>
           </body>
@@ -218,9 +218,9 @@ jobs:
           body: |
             ${{ steps.assets.outputs.release_body }}
 
-            [Download Windows ZIP](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/localsend-bridge-windows.zip)
-            ${{ needs.build-android.result == 'success' && format('[Download APK](https://github.com/Godszeal2/localsend/releases/download/{0}/localsend-bridge.apk)', steps.release_info.outputs.tag) || '' }}
+            [Download Windows ZIP](https://github.com/Godszeal2/localsend/releases/download/${{ steps.release_info.outputs.tag }}/LocalSend-Bridge-Windows.zip)
+            ${{ needs.build-android.result == 'success' && format('[Download APK](https://github.com/Godszeal2/localsend/releases/download/{0}/LocalSend-Bridge.apk)', steps.release_info.outputs.tag) || '' }}
           files: |
-            release-artifacts/windows/localsend-bridge-windows.zip
+            release-artifacts/windows/LocalSend-Bridge-Windows.zip
             release-artifacts/download.html
             ${{ steps.assets.outputs.android_asset }}
