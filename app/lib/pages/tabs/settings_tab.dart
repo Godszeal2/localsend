@@ -258,12 +258,12 @@ class SettingsTab extends StatelessWidget {
                       _GuideItem(
                         icon: Icons.phone_android,
                         title: 'Mobile-to-mobile send and receive',
-                        body: 'Keep both phones on the same Wi‑Fi, leave Receive open on the target phone, then use Send to choose files, media, audio, folders, text, or clipboard items.',
+                        body: 'Keep both phones on the same Wi‑Fi, leave Receive open on the target phone, then use Send or ZealBridge to choose files, media, audio, folders, text, or clipboard items with the same desktop/mobile controls.',
                       ),
                       _GuideItem(
                         icon: Icons.cast_connected,
                         title: 'Direct bridge connection',
-                        body: 'Start ZealBridge on Windows or desktop. Nearby apps use the zealbridge:// connection QR/deep link so playback can continue in the app and in the background; the web endpoint is only a fallback.',
+                        body: 'Start ZealBridge on Windows, desktop, or mobile. Nearby apps use the zealbridge:// connection QR/deep link so playback can continue in the app; the bridge automatically keeps the screen awake while running.',
                       ),
                       _GuideItem(
                         icon: Icons.settings_remote,

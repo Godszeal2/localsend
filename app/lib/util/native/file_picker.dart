@@ -90,6 +90,7 @@ enum FilePickerOption {
       // Desktop
       return [
         FilePickerOption.file,
+        FilePickerOption.media,
         FilePickerOption.folder,
         FilePickerOption.text,
         FilePickerOption.clipboard,
@@ -242,6 +243,11 @@ Future<void> _pickFolder(BuildContext context, Ref ref) async {
 }
 
 Future<void> _pickMedia(BuildContext context, Ref ref) async {
+  if (checkPlatformIsDesktop()) {
+    await _pickFiles(context, ref);
+    return;
+  }
+
   if (checkPlatform([TargetPlatform.android])) {
     await PhotoManager.requestPermissionExtend(
       requestOption: const PermissionRequestOption(

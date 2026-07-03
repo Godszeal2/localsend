@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _horizontalPadding = 15.0;
 const _brandName = 'ZealBridge';
@@ -16,7 +17,7 @@ class BridgeTab extends StatefulWidget {
   State<BridgeTab> createState() => _BridgeTabState();
 }
 
-class _BridgeTabState extends State<BridgeTab> {
+class _BridgeTabState extends State<BridgeTab> with WidgetsBindingObserver {
   HttpServer? _server;
   File? _mediaFile;
   String? _url;
@@ -32,11 +33,39 @@ class _BridgeTabState extends State<BridgeTab> {
   double _positionSeconds = 0;
   double _playbackRate = 1;
   double _volume = 0; // Desktop bridge output stays muted by default.
+  bool _keepAwake = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_server?.close(force: true));
+    unawaited(_setBridgeAwake(false));
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_server == null || !mounted) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      setState(() {
+        _status = 'ZealBridge is still serving in the background. Keep the app open when possible so mobile-to-mobile or desktop-to-mobile playback stays connected.';
+      });
+    }
+  }
+
+  Future<void> _setBridgeAwake(bool enabled) async {
+    _keepAwake = enabled;
+    if (enabled) {
+      await WakelockPlus.enable();
+    } else {
+      await WakelockPlus.disable();
+    }
   }
 
   Future<void> _pickMedia() async {
@@ -47,7 +76,7 @@ class _BridgeTabState extends State<BridgeTab> {
     }
     setState(() {
       _mediaFile = File(path);
-      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Start ZealBridge to stream it in-app with synced controls.';
+      _status = 'Selected ${path.split(Platform.pathSeparator).last}. Start ZealBridge to stream it in-app with synced controls from desktop or mobile.';
     });
   }
 
@@ -71,8 +100,11 @@ class _BridgeTabState extends State<BridgeTab> {
         'player': url.replaceFirst('/stream', '/'),
         'state': url.replaceFirst('/stream', '/state'),
         'control': url.replaceFirst('/stream', '/control'),
+        'mode': 'app',
       },
     ).toString();
+
+    await _setBridgeAwake(true);
 
     setState(() {
       _server = server;
@@ -84,6 +116,7 @@ class _BridgeTabState extends State<BridgeTab> {
 
   Future<void> _stopServer() async {
     await _server?.close(force: true);
+    await _setBridgeAwake(false);
     setState(() {
       _server = null;
       _url = null;
@@ -187,7 +220,7 @@ class _BridgeTabState extends State<BridgeTab> {
     });
   }
 
-  String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true}';
+  String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true,"keepAwake":$_keepAwake}';
 
   String _playerHtml(String primaryType) {
     final tag = primaryType == 'audio' ? 'audio' : 'video';
@@ -206,7 +239,7 @@ class _BridgeTabState extends State<BridgeTab> {
           child: ListTile(
             leading: Icon(Icons.cast_connected, color: Theme.of(context).colorScheme.primary),
             title: Text(_brandName, style: Theme.of(context).textTheme.titleLarge),
-            subtitle: const Text('Powered by God\'s Zeal. Stream a desktop media file over Wi‑Fi to your phone, then play it through Bluetooth audio.'),
+            subtitle: const Text('Powered by God\'s Zeal. Stream audio or video from desktop or mobile, keep the bridge awake, and play through the receiving app or Bluetooth audio.'),
           ),
         ),
         Card(
@@ -228,7 +261,7 @@ class _BridgeTabState extends State<BridgeTab> {
                 const SizedBox(height: 16),
                 Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: directConnectUri))),
                 const SizedBox(height: 8),
-                const Text('Scan with ZealBridge to connect in-app. If deep links are unavailable, use the fallback player endpoint below.'),
+                const Text('Scan with ZealBridge to connect in-app for desktop-to-mobile or mobile-to-mobile playback. If deep links are unavailable, use the fallback player endpoint below.'),
                 SelectableText(url.replaceFirst('/stream', '/'), textAlign: TextAlign.center),
               ],
             ]),
@@ -239,6 +272,7 @@ class _BridgeTabState extends State<BridgeTab> {
         _SliderCard(title: 'Output gain', value: _gain, onChanged: (v) => setState(() => _gain = v)),
         Card(
           child: Column(children: [
+            SwitchListTile(value: _keepAwake, onChanged: null, title: const Text('Keep bridge awake'), subtitle: const Text('Enabled automatically while the bridge is running so mobile and desktop playback do not sleep.')),
             SwitchListTile(value: _screenMirror, onChanged: (v) => setState(() => _screenMirror = v), title: const Text('Screen-share mode'), subtitle: const Text('Keeps the ZealBridge session alive for mirrored image/video payload handoff; native desktop capture can attach to this transport later.')),
             SwitchListTile(value: _remoteInput, onChanged: (v) => setState(() => _remoteInput = v), title: const Text('Remote gamepad, mouse, and keyboard'), subtitle: const Text('Remote control events are reserved in the bridge control channel; OS-level trusted input injection still requires platform permission.')),
             SwitchListTile(value: _turnRelay, onChanged: (v) => setState(() => _turnRelay = v), title: const Text('TURN relay'), subtitle: const Text('Relay mode is exposed in the session model; same-Wi‑Fi streaming is used unless a deployed relay is configured.')),
