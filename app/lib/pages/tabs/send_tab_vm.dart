@@ -127,9 +127,7 @@ final sendTabVmProvider = ViewProvider((ref) {
           builder: (_) => FavoriteDeleteDialog(favoriteDevice),
         );
         if (result == true) {
-          await ref.redux(favoritesProvider).dispatchAsync(
-                RemoveFavoriteAction(deviceFingerprint: device.fingerprint),
-              );
+          await ref.redux(favoritesProvider).dispatchAsync(RemoveFavoriteAction(deviceFingerprint: device.fingerprint));
         }
       } else {
         await showDialog(
