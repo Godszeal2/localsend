@@ -164,7 +164,7 @@ function showQrModal() {
   const webUrl = `${httpBase}/?room=${state.roomCode}&server=${encodeURIComponent(wsUrl)}&mode=mobile`;
 
   if (window.QRCode) {
-    new QRCode(area, { text: webUrl, width: 200, height: 200, colorDark:'#e8e8f0', colorLight:'#1a1a2e' });
+    new QRCode(area, { text: webUrl, width: 200, height: 200, colorDark:'#111827', colorLight:'#ffffff' });
   } else {
     area.textContent = webUrl;
     area.style.wordBreak = 'break-all';
