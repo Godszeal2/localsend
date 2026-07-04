@@ -1867,6 +1867,9 @@ const _: fn() = || {
         crate::api::webrtc::WsServerMessage::Answer(field0) => {
             let _: crate::api::webrtc::WsServerSdpMessage = field0;
         }
+        crate::api::webrtc::WsServerMessage::Signal(field0) => {
+            let _: crate::api::webrtc::WsServerSignalMessage = field0;
+        }
         crate::api::webrtc::WsServerMessage::Error { code } => {
             let _: u16 = code;
         }

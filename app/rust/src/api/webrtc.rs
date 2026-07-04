@@ -6,7 +6,7 @@ use localsend::model::discovery::DeviceType;
 use localsend::model::transfer::FileDto;
 pub use localsend::webrtc::signaling::{
     ClientInfo, ClientInfoWithoutId, ManagedSignalingConnection, SignalingConnection,
-    WsServerMessage, WsServerSdpMessage,
+    WsServerMessage, WsServerSdpMessage, WsServerSignalMessage,
 };
 pub use localsend::webrtc::webrtc::{
     PinConfig, RTCFile, RTCFileError, RTCSendFileResponse, RTCStatus,
@@ -457,6 +457,7 @@ pub enum _WsServerMessage {
     },
     Offer(WsServerSdpMessage),
     Answer(WsServerSdpMessage),
+    Signal(WsServerSignalMessage),
     Error {
         code: u16,
     },
@@ -486,6 +487,14 @@ pub struct _WsServerSdpMessage {
     pub peer: ClientInfo,
     pub session_id: String,
     pub sdp: String,
+}
+
+#[frb(mirror(WsServerSignalMessage))]
+pub struct _WsServerSignalMessage {
+    pub peer: ClientInfo,
+    pub target: Uuid,
+    pub signal: String,
+    pub payload: serde_json::Value,
 }
 
 #[frb(mirror(RTCStatus))]
