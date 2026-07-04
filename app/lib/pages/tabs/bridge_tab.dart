@@ -260,6 +260,19 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
     }
   }
 
+  List<Device> _dedupeNearbyDevices(Iterable<Device> devices) {
+    final byIdentity = <String, Device>{};
+    for (final device in devices) {
+      final key = device.fingerprint.isNotEmpty ? device.fingerprint : '${device.alias}-${device.ip ?? device.signalingId ?? device.port}';
+      byIdentity.update(
+        key,
+        (current) => current.ip != null ? current : device,
+        ifAbsent: () => device,
+      );
+    }
+    return byIdentity.values.toList()..sort((a, b) => a.alias.compareTo(b.alias));
+  }
+
   String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true,"keepAwake":$_keepAwake}';
 
   String _playerHtml(String primaryType) {
@@ -272,7 +285,7 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
     final url = _url;
     final videoController = _videoController;
     final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'No media selected';
-    final nearbyDevices = context.ref.watch(nearbyDevicesProvider).allDevices.values.toList();
+    final nearbyDevices = _dedupeNearbyDevices(context.ref.watch(nearbyDevicesProvider).allDevices.values);
     return ResponsiveListView(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
       children: [

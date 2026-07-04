@@ -10,8 +10,8 @@ use axum::response::Response;
 use futures_util::stream::StreamExt;
 use futures_util::SinkExt;
 use localsend::webrtc::signaling::{
-    ClientInfo, ClientInfoWithoutId, WsClientMessage, WsClientSdpMessage, WsServerMessage,
-    WsServerSdpMessage,
+    ClientInfo, ClientInfoWithoutId, WsClientMessage, WsClientSdpMessage,
+    WsClientSignalMessage, WsServerMessage, WsServerSdpMessage, WsServerSignalMessage,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -230,6 +230,15 @@ async fn handle_socket(
                             )
                             .await
                         }
+                        WsClientMessage::Signal(signal) => {
+                            send_signal_to_peer_with_lock(
+                                &tx_map_clone,
+                                &ip_group_clone,
+                                peer.clone(),
+                                signal,
+                            )
+                            .await
+                        }
                     }
                 }
             }
@@ -277,6 +286,34 @@ async fn handle_socket(
 
     for tx in remaining_tx {
         let _ = tx.send(WsServerMessage::Left { peer_id }).await;
+    }
+}
+
+async fn send_signal_to_peer_with_lock(
+    tx_map: &TxMap,
+    ip_group: &str,
+    origin_peer: ClientInfo,
+    message: WsClientSignalMessage,
+) {
+    let mut target_peer_tx: Option<mpsc::Sender<WsServerMessage>> = None;
+    {
+        let tx_map = tx_map.lock().await;
+        if let Some(tx_local_map) = tx_map.get(ip_group) {
+            if let Some(peer_state) = tx_local_map.get(&message.target) {
+                target_peer_tx = Some(peer_state.tx.clone());
+            }
+        }
+    }
+
+    if let Some(tx) = target_peer_tx {
+        let _ = tx
+            .send(WsServerMessage::Signal(WsServerSignalMessage {
+                peer: origin_peer,
+                target: message.target,
+                signal: message.signal,
+                payload: message.payload,
+            }))
+            .await;
     }
 }
 

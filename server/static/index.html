@@ -341,11 +341,27 @@
   </nav>
 
   <div id="m-bridge" class="tab-panel active">
+    <div id="m-bridge-request" class="bridge-request hidden">
+      <h3>Bridge request</h3>
+      <p id="m-bridge-request-text">A desktop wants to start a bridge.</p>
+      <div class="stream-actions">
+        <button id="m-bridge-accept-btn" class="btn-primary">Accept bridge</button>
+        <button id="m-bridge-decline-btn" class="btn-secondary">Decline</button>
+      </div>
+    </div>
     <div class="bridge-card">
       <div class="bridge-icon">🔊</div>
       <h3>Audio Bridge</h3>
       <p class="bridge-sub">Plays PC audio through your phone → AirPods/headphones via Bluetooth. Audio keeps playing when screen locks.</p>
       <audio id="m-audio-el" autoplay playsinline></audio>
+      <div id="m-bridge-video-card" class="bridge-video-card hidden">
+        <div class="bridge-video-head">
+          <strong>Now playing video</strong>
+          <button id="m-bridge-fit-btn" class="btn-sm">Fit: contain</button>
+        </div>
+        <video id="m-bridge-video" autoplay playsinline controls class="bridge-video-frame"></video>
+        <button id="m-bridge-fullscreen-btn" class="btn-secondary">⤢ Fullscreen</button>
+      </div>
       <div id="m-now-playing" class="now-playing hidden">
         <div class="np-spinner"></div>
         <div><div id="m-track-name" class="track-name">—</div><div class="track-meta">via WiFi → Bluetooth</div></div>

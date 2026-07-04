@@ -86,12 +86,28 @@
 
   <!-- ── Audio Bridge ── -->
   <div id="t-audio" class="tab-panel active">
+    <div id="bridge-request" class="bridge-request hidden">
+      <h3>Bridge request</h3>
+      <p id="bridge-request-text">A desktop wants to start a bridge.</p>
+      <div class="screen-controls">
+        <button id="bridge-accept-btn" class="btn-secondary">Accept</button>
+        <button id="bridge-decline-btn" class="btn-secondary">Decline</button>
+      </div>
+    </div>
     <div class="bridge-card">
       <div class="bridge-icon" id="audio-anim">🔊</div>
       <h2>Audio Bridge</h2>
       <p class="bridge-sub">Receives audio/video from your PC over WiFi and plays through your phone speaker or Bluetooth headphones (AirPods, etc.)</p>
 
       <audio id="m-audio" autoplay playsinline></audio>
+      <div id="bridge-video-card" class="bridge-video-card hidden">
+        <div class="screen-controls">
+          <strong>Now playing video</strong>
+          <button id="bridge-fit-btn" class="btn-secondary">Fit: contain</button>
+        </div>
+        <video id="bridge-video" autoplay playsinline controls class="screen-video"></video>
+        <button id="bridge-fullscreen-btn" class="btn-secondary">⤢ Fullscreen</button>
+      </div>
 
       <div id="now-playing" class="now-playing hidden">
         <div class="np-bars">

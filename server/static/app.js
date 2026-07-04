@@ -45,6 +45,7 @@ const state = {
   audioCtx: null, audioNodes: {}, audioStream: null,
   videoStream: null, screenStream: null,
   mods: { ctrl:false, alt:false, shift:false, win:false },
+  pendingBridgePeerId: null,
 };
 
 /* ── Boot ──────────────────────────────────────────────────── */
@@ -85,6 +86,10 @@ function initConnectScreen() {
   on('d-disconnect-btn', 'click', disconnect);
   on('m-disconnect-btn', 'click', disconnect);
   on('d-qr-btn', 'click', showQrModal);
+  on('m-bridge-accept-btn', 'click', acceptBridgeRequest);
+  on('m-bridge-decline-btn', 'click', declineBridgeRequest);
+  on('m-bridge-fullscreen-btn', 'click', () => $('m-bridge-video')?.requestFullscreen?.());
+  on('m-bridge-fit-btn', 'click', toggleBridgeVideoFit);
   on('qr-close-btn', 'click', () => hide('qr-modal'));
   on('m-fullscreen-btn', 'click', () => {
     const v = $('m-screen-video');
@@ -210,7 +215,6 @@ function handleSignal(msg, resolve, reject) {
       break;
     case 'JOIN':
       addPeer(msg.peer); updatePeerUI();
-      if (state.mode === 'desktop') initiateOffer(msg.peer.id);
       break;
     case 'LEFT':  removePeer(msg.peerId); updatePeerUI(); break;
     case 'UPDATE':
@@ -218,10 +222,68 @@ function handleSignal(msg, resolve, reject) {
       break;
     case 'OFFER':  handleOffer(msg);  break;
     case 'ANSWER': handleAnswer(msg); break;
+    case 'SIGNAL': handleAppSignal(msg); break;
   }
 }
 function sendSignal(o) {
   if (state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify(o));
+}
+
+
+/* ── Bridge request / accept flow ───────────────────────────── */
+function requestBridgeFromPeers(kind) {
+  if (!state.peers.size) { alert('No phone connected yet. Open BridgeCast on the phone in the same room.'); return false; }
+  state.peers.forEach((_, peerId) => sendBridgeRequest(peerId, kind));
+  return true;
+}
+function sendBridgeRequest(peerId, kind) {
+  const peer = getPeer(peerId); if (!peer) return;
+  peer.bridgeStatus = 'requested';
+  sendSignal({ type:'SIGNAL', target:peerId, signal:'BRIDGE_REQUEST', payload:{ kind, fromAlias:state.alias } });
+  updatePeerUI();
+}
+function handleAppSignal(msg) {
+  if (msg.signal === 'BRIDGE_REQUEST') showMobileBridgeRequest(msg);
+  if (msg.signal === 'BRIDGE_ACCEPT') handleBridgeAccepted(msg);
+  if (msg.signal === 'BRIDGE_DECLINE') handleBridgeDeclined(msg);
+}
+function showMobileBridgeRequest(msg) {
+  if (state.mode !== 'mobile') return;
+  state.pendingBridgePeerId = msg.peer?.id || null;
+  const payload = msg.payload || {};
+  setText('m-bridge-request-text', `${payload.fromAlias || msg.peer?.alias || 'Desktop'} wants to start a ${payload.kind || 'media'} bridge. Accept to receive video in the player and audio in the background.`);
+  show('m-bridge-request');
+}
+function acceptBridgeRequest() {
+  if (!state.pendingBridgePeerId) return;
+  sendSignal({ type:'SIGNAL', target:state.pendingBridgePeerId, signal:'BRIDGE_ACCEPT', payload:{} });
+  hide('m-bridge-request');
+  setMobileStatus('Bridge accepted — waiting for stream…', true);
+}
+function declineBridgeRequest() {
+  if (!state.pendingBridgePeerId) return;
+  sendSignal({ type:'SIGNAL', target:state.pendingBridgePeerId, signal:'BRIDGE_DECLINE', payload:{} });
+  hide('m-bridge-request');
+  setMobileStatus('Bridge declined', false);
+  state.pendingBridgePeerId = null;
+}
+function handleBridgeAccepted(msg) {
+  if (state.mode !== 'desktop') return;
+  const peerId = msg.peer?.id;
+  if (!peerId) return;
+  const peer = getPeer(peerId); if (peer) peer.bridgeStatus = 'accepted';
+  initiateOffer(peerId);
+  updatePeerUI();
+}
+function handleBridgeDeclined(msg) {
+  if (state.mode !== 'desktop') return;
+  const peer = getPeer(msg.peer?.id); if (peer) peer.bridgeStatus = 'declined';
+  updatePeerUI();
+}
+function toggleBridgeVideoFit() {
+  const video = $('m-bridge-video'); if (!video) return;
+  video.classList.toggle('cover');
+  setText('m-bridge-fit-btn', video.classList.contains('cover') ? 'Fit: cover' : 'Fit: contain');
 }
 
 /* ── Peer Management ────────────────────────────────────────── */
@@ -258,7 +320,7 @@ function renderPeerList(id, peers) {
       <div class="peer-icon">${deviceIcon(p.info.deviceType)}</div>
       <div class="peer-info">
         <div class="peer-name">${escHtml(p.info.alias)}</div>
-        <div class="peer-meta">${p.info.deviceType||'Unknown'} · ${p.info.deviceModel||''}</div>
+        <div class="peer-meta">${p.info.deviceType||'Unknown'} · ${p.info.deviceModel||''}${p.bridgeStatus ? ' · '+p.bridgeStatus : ''}</div>
       </div>
     </div>`).join('');
 }
@@ -436,6 +498,7 @@ function startAudioStream() {
   state.peers.forEach((_, pid) => {
     const p = getPeer(pid);
     if (p?.pc) { stream.getTracks().forEach(t => { try{p.pc.addTrack(t,stream);}catch(_){} }); renegotiate(pid); }
+    else sendBridgeRequest(pid, 'audio');
   });
   el.play();
   hide('audio-stream-btn'); show('audio-stop-btn'); show('audio-stream-status');
@@ -479,6 +542,7 @@ function startVideoStream() {
   state.peers.forEach((_, pid) => {
     const p = getPeer(pid);
     if (p?.pc) { stream.getTracks().forEach(t => { try{p.pc.addTrack(t,stream);}catch(_){} }); renegotiate(pid); }
+    else sendBridgeRequest(pid, 'video');
   });
   el.play();
   hide('video-stream-btn'); show('video-stop-btn');
@@ -512,6 +576,7 @@ async function startScreenShare() {
     state.peers.forEach((_, pid) => {
       const p = getPeer(pid);
       if (p?.pc) { stream.getTracks().forEach(t => { try{p.pc.addTrack(t,stream);}catch(_){} }); renegotiate(pid); }
+      else sendBridgeRequest(pid, 'screen');
     });
 
     // Stop when user clicks browser's built-in "Stop sharing"
@@ -564,6 +629,8 @@ function receiveMobileStream(stream, kind) {
 
   // Route video (screen share or video file)
   if (stream.getVideoTracks().length > 0) {
+    const bridgeVid = $('m-bridge-video');
+    if (bridgeVid) { bridgeVid.srcObject = stream; bridgeVid.play().catch(()=>{}); show('m-bridge-video-card'); }
     const vid = $('m-screen-video');
     if (vid) {
       vid.srcObject = stream;

@@ -53,6 +53,9 @@ pub enum WsServerMessage {
     /// SDP answer from a peer to another peer.
     Answer(WsServerSdpMessage),
 
+    /// Generic app-level signal from a peer to another peer.
+    Signal(WsServerSignalMessage),
+
     /// Error message.
     Error {
         /// The error code.
@@ -72,6 +75,22 @@ pub struct WsServerSdpMessage {
     /// The SDP string for the answer.
     /// Compressed with zlib, then encoded with base64 without padding.
     pub sdp: String,
+}
+
+#[derive(Clone, Deserialize, Eq, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WsServerSignalMessage {
+    /// The peer that triggered the message.
+    pub peer: ClientInfo,
+
+    /// Target peer ID.
+    pub target: Uuid,
+
+    /// App-level signal name.
+    pub signal: String,
+
+    /// JSON payload for the app-level signal.
+    pub payload: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Serialize, PartialEq)]
@@ -157,6 +176,7 @@ pub enum WsClientMessage {
     Update { info: ClientInfoWithoutId },
     Offer(WsClientSdpMessage),
     Answer(WsClientSdpMessage),
+    Signal(WsClientSignalMessage),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -172,6 +192,19 @@ pub struct WsClientSdpMessage {
     /// The SDP offer.
     /// Compressed with zlib, then encoded with base64 without padding.
     pub sdp: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WsClientSignalMessage {
+    /// Target peer ID.
+    pub target: Uuid,
+
+    /// App-level signal name.
+    pub signal: String,
+
+    /// JSON payload for the app-level signal.
+    pub payload: serde_json::Value,
 }
 
 pub struct SignalingConnection {

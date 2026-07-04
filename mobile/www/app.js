@@ -22,6 +22,7 @@ const st = {
   screenStream: null,
   audioEl: null,
   wakeLock: null,
+  pendingBridgePeerId: null,
 };
 
 // ── Capacitor plugin helpers (graceful degradation) ──────────
@@ -59,6 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setText('vol-pct', Math.round(v * 100) + '%');
     if (st.audioEl) st.audioEl.volume = v;
   });
+  on('bridge-accept-btn', 'click', acceptBridgeRequest);
+  on('bridge-decline-btn', 'click', declineBridgeRequest);
+  on('bridge-fullscreen-btn', 'click', () => $('bridge-video')?.requestFullscreen?.());
+  on('bridge-fit-btn', 'click', toggleBridgeVideoFit);
   on('screen-fullscreen-btn', 'click', () => {
     const v = $('m-screen-video');
     if (v) v.requestFullscreen ? v.requestFullscreen() : v.webkitRequestFullscreen?.();
@@ -155,10 +160,40 @@ function handleSignal(msg, resolve, reject) {
       break;
     case 'OFFER':  handleOffer(msg); break;
     case 'ANSWER': handleAnswer(msg); break;
+    case 'SIGNAL': handleAppSignal(msg); break;
   }
 }
 function sendSignal(o) {
   if (st.ws && st.ws.readyState === 1) st.ws.send(JSON.stringify(o));
+}
+
+
+function handleAppSignal(msg) {
+  if (msg.signal === 'BRIDGE_REQUEST') showBridgeRequest(msg);
+}
+function showBridgeRequest(msg) {
+  st.pendingBridgePeerId = msg.peer?.id || null;
+  const payload = msg.payload || {};
+  setText('bridge-request-text', `${payload.fromAlias || msg.peer?.alias || 'Desktop'} wants to start a ${payload.kind || 'media'} bridge. Accept to receive video here and audio in the background.`);
+  show('bridge-request');
+}
+function acceptBridgeRequest() {
+  if (!st.pendingBridgePeerId) return;
+  sendSignal({ type:'SIGNAL', target:st.pendingBridgePeerId, signal:'BRIDGE_ACCEPT', payload:{} });
+  hide('bridge-request');
+  setStatus('Bridge accepted — waiting for stream…', true);
+}
+function declineBridgeRequest() {
+  if (!st.pendingBridgePeerId) return;
+  sendSignal({ type:'SIGNAL', target:st.pendingBridgePeerId, signal:'BRIDGE_DECLINE', payload:{} });
+  hide('bridge-request');
+  setStatus('Bridge declined', false);
+  st.pendingBridgePeerId = null;
+}
+function toggleBridgeVideoFit() {
+  const video = $('bridge-video'); if (!video) return;
+  video.classList.toggle('cover');
+  setText('bridge-fit-btn', video.classList.contains('cover') ? 'Fit: cover' : 'Fit: contain');
 }
 
 // ── Peer management ──────────────────────────────────────────
@@ -268,7 +303,13 @@ function receiveVideo(stream, kind) {
   if (stream.getAudioTracks().length > 0) {
     receiveAudio(stream);
   }
-  // Show screen/video in the screen tab
+  // Show video in the bridge tab and screen tab
+  const bridgeVideo = $('bridge-video');
+  if (bridgeVideo) {
+    bridgeVideo.srcObject = stream;
+    bridgeVideo.play().catch(() => {});
+    show('bridge-video-card');
+  }
   const videoEl = $('m-screen-video');
   videoEl.srcObject = stream;
   videoEl.play().catch(() => {});
