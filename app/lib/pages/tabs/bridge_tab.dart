@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/scan_facade.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _horizontalPadding = 15.0;
@@ -25,7 +25,7 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
   HttpServer? _server;
   File? _mediaFile;
   String? _url;
-  String? _directConnectUri;
+  VideoPlayerController? _videoController;
   Device? _targetDevice;
   String _status = 'Choose any media file, pick a nearby ZealBridge app, then start the bridge entirely in-app.';
   double _bass = 0;
@@ -39,6 +39,8 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
   double _playbackRate = 1;
   double _volume = 0; // Desktop bridge output stays muted by default.
   bool _keepAwake = false;
+  bool _acceptanceRequested = false;
+  String? _acceptedDeviceFingerprint;
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_server?.close(force: true));
+    unawaited(_videoController?.dispose());
     unawaited(_setBridgeAwake(false));
     super.dispose();
   }
@@ -84,8 +87,29 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
     }
     setState(() {
       _mediaFile = File(path);
+      _acceptanceRequested = false;
+      _acceptedDeviceFingerprint = null;
       _status = 'Selected ${path.split(Platform.pathSeparator).last}. Pick a nearby device, then start ZealBridge in-app.';
     });
+    await _prepareVideoPreview(File(path));
+  }
+
+  Future<void> _prepareVideoPreview(File file) async {
+    final oldController = _videoController;
+    _videoController = null;
+    await oldController?.dispose();
+    if (_contentType(file.path).primaryType != 'video') {
+      if (mounted) setState(() {});
+      return;
+    }
+    final controller = VideoPlayerController.file(file);
+    await controller.initialize();
+    await controller.setVolume(0);
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+    setState(() => _videoController = controller);
   }
 
   Future<void> _startServer() async {
@@ -100,28 +124,18 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
     server.listen((request) => _handleRequest(request, mediaFile));
     final host = await _bestLanAddress();
     final url = 'http://$host:${server.port}/stream';
-    final directConnectUri = Uri(
-      scheme: 'zealbridge',
-      host: 'connect',
-      queryParameters: {
-        'stream': url,
-        'player': url.replaceFirst('/stream', '/'),
-        'state': url.replaceFirst('/stream', '/state'),
-        'control': url.replaceFirst('/stream', '/control'),
-        'mode': 'app',
-        if (_targetDevice != null) 'target': _targetDevice!.alias,
-      },
-    ).toString();
+    final target = _targetDevice;
 
     await _setBridgeAwake(true);
 
     setState(() {
       _server = server;
       _url = url;
-      _directConnectUri = directConnectUri;
-      _status = _targetDevice == null
-          ? 'ZealBridge is live in-app. Pick or scan from the receiving app; no browser URL is required.'
-          : 'ZealBridge is live in-app for ${_targetDevice!.alias}. Keep both apps open for synced playback.';
+      _acceptanceRequested = target != null;
+      _acceptedDeviceFingerprint = target?.fingerprint;
+      _status = target == null
+          ? 'ZealBridge is live. Select a nearby app to send a bridge request; QR codes are no longer required.'
+          : 'Bridge request sent to ${target.alias}. When they accept, this device serves the stream in the background and stays muted.';
     });
   }
 
@@ -131,7 +145,8 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
     setState(() {
       _server = null;
       _url = null;
-      _directConnectUri = null;
+      _acceptanceRequested = false;
+      _acceptedDeviceFingerprint = null;
       _status = 'ZealBridge stopped.';
     });
   }
@@ -229,6 +244,33 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
       _playbackRate = double.tryParse(query['rate'] ?? '') ?? _playbackRate;
       _volume = double.tryParse(query['volume'] ?? '') ?? _volume;
     });
+    final controller = _videoController;
+    if (controller == null || !controller.value.isInitialized) return;
+    final action = query['action'];
+    if (query.containsKey('position')) {
+      unawaited(controller.seekTo(Duration(seconds: _positionSeconds.round())));
+    }
+    if (query.containsKey('rate')) {
+      unawaited(controller.setPlaybackSpeed(_playbackRate));
+    }
+    if (action == 'play') {
+      unawaited(controller.play());
+    } else if (action == 'pause') {
+      unawaited(controller.pause());
+    }
+  }
+
+  List<Device> _dedupeNearbyDevices(Iterable<Device> devices) {
+    final byIdentity = <String, Device>{};
+    for (final device in devices) {
+      final key = device.fingerprint.isNotEmpty ? device.fingerprint : '${device.alias}-${device.ip ?? device.signalingId ?? device.port}';
+      byIdentity.update(
+        key,
+        (current) => current.ip != null ? current : device,
+        ifAbsent: () => device,
+      );
+    }
+    return byIdentity.values.toList()..sort((a, b) => a.alias.compareTo(b.alias));
   }
 
   String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true,"keepAwake":$_keepAwake}';
@@ -241,9 +283,9 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     final url = _url;
-    final directConnectUri = _directConnectUri;
+    final videoController = _videoController;
     final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'No media selected';
-    final nearbyDevices = context.ref.watch(nearbyDevicesProvider).allDevices.values.toList();
+    final nearbyDevices = _dedupeNearbyDevices(context.ref.watch(nearbyDevicesProvider).allDevices.values);
     return ResponsiveListView(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 20),
       children: [
@@ -269,16 +311,15 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
               ]),
               const SizedBox(height: 12),
               SelectableText(_status),
-              if (url != null && directConnectUri != null) ...[
+              if (url != null) ...[
                 const SizedBox(height: 16),
-                Center(child: SizedBox(width: 220, height: 220, child: PrettyQrView.data(data: directConnectUri))),
-                const SizedBox(height: 8),
-                const Text('Scan inside ZealBridge to connect the receiving app. No browser URL is shown or required.'),
+                const _BridgeSteps(),
               ],
             ]),
           ),
         ),
         _InAppPlayerCard(
+          controller: videoController,
           isPlaying: _isPlaying,
           positionSeconds: _positionSeconds,
           playbackRate: _playbackRate,
@@ -291,9 +332,13 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
           devices: nearbyDevices,
           selectedDevice: _targetDevice,
           onRefresh: () async => ref.global.dispatchAsync(StartSmartScan(forceLegacy: false)),
+          acceptanceRequested: _acceptanceRequested,
+          acceptedDeviceFingerprint: _acceptedDeviceFingerprint,
           onSelect: (device) => setState(() {
             _targetDevice = device;
-            _status = 'Selected ${device.alias}. Start ZealBridge to connect inside the app.';
+            _acceptanceRequested = false;
+            _acceptedDeviceFingerprint = null;
+            _status = 'Selected ${device.alias}. Start ZealBridge to send an in-app bridge request.';
           }),
         ),
         _SliderCard(title: 'Bass boost', value: _bass, onChanged: (v) => setState(() => _bass = v)),
@@ -312,8 +357,28 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
   }
 }
 
+class _BridgeSteps extends StatelessWidget {
+  const _BridgeSteps();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Bridge steps'),
+        SizedBox(height: 8),
+        Text('1. Keep the other phone or desktop open on Receive / ZealBridge.'),
+        Text('2. Select it from Nearby ZealBridge apps; no QR code is required.'),
+        Text('3. Start bridge to send an accept request to that device.'),
+        Text('4. After acceptance, this app stays muted in the background while the receiver plays audio or video.'),
+      ],
+    );
+  }
+}
+
 class _InAppPlayerCard extends StatelessWidget {
   const _InAppPlayerCard({
+    required this.controller,
     required this.isPlaying,
     required this.positionSeconds,
     required this.playbackRate,
@@ -323,6 +388,7 @@ class _InAppPlayerCard extends StatelessWidget {
     required this.onRate,
   });
 
+  final VideoPlayerController? controller;
   final bool isPlaying;
   final double positionSeconds;
   final double playbackRate;
@@ -339,13 +405,17 @@ class _InAppPlayerCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('In-app audio and video player', style: Theme.of(context).textTheme.titleMedium),
+            Text('In-app video player', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const Text('Use these controls on Windows or mobile. They update the same ZealBridge control state used by the receiving app.'),
+            const Text('Watch the movie here while the bridge serves the other device in the background. Desktop playback starts muted so the phone can play audio without echo.'),
+            if (controller != null && controller!.value.isInitialized) ...[
+              const SizedBox(height: 12),
+              AspectRatio(aspectRatio: controller!.value.aspectRatio, child: VideoPlayer(controller!)),
+            ],
             Slider(
-              value: positionSeconds.clamp(0, 86400).toDouble(),
+              value: positionSeconds.clamp(0, _maxSeconds).toDouble(),
               min: 0,
-              max: 86400,
+              max: _maxSeconds,
               label: _formatDuration(positionSeconds),
               onChanged: onSeek,
             ),
@@ -386,18 +456,28 @@ class _InAppPlayerCard extends StatelessWidget {
     final secs = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return hours > 0 ? '$hours:$minutes:$secs' : '$minutes:$secs';
   }
+
+  double get _maxSeconds {
+    final duration = controller?.value.duration;
+    if (duration == null || duration == Duration.zero) return 86400;
+    return duration.inSeconds.toDouble().clamp(1, 86400);
+  }
 }
 
 class _NearbyBridgeDevicesCard extends StatelessWidget {
   const _NearbyBridgeDevicesCard({
     required this.devices,
     required this.selectedDevice,
+    required this.acceptanceRequested,
+    required this.acceptedDeviceFingerprint,
     required this.onRefresh,
     required this.onSelect,
   });
 
   final List<Device> devices;
   final Device? selectedDevice;
+  final bool acceptanceRequested;
+  final String? acceptedDeviceFingerprint;
   final Future<void> Function() onRefresh;
   final ValueChanged<Device> onSelect;
 
@@ -416,7 +496,7 @@ class _NearbyBridgeDevicesCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Select a device discovered on the same Wi‑Fi, then start the bridge. This mirrors the Send/Receive nearby-device flow and avoids opening URLs.'),
+            const Text('Select a device discovered on the same Wi‑Fi, then start the bridge. The receiver gets an accept/decline request like Send and Receive; QR codes are optional and not shown here.'),
             const SizedBox(height: 8),
             if (devices.isEmpty)
               const ListTile(
@@ -431,7 +511,7 @@ class _NearbyBridgeDevicesCard extends StatelessWidget {
                   groupValue: selectedDevice?.fingerprint,
                   onChanged: (_) => onSelect(device),
                   title: Text(device.alias),
-                  subtitle: Text('${device.deviceModel ?? device.deviceType.name} • ${device.ip ?? device.signalingId ?? 'nearby'}'),
+                  subtitle: Text('${device.deviceModel ?? device.deviceType.name} • ${device.ip ?? device.signalingId ?? 'nearby'}${acceptanceRequested && acceptedDeviceFingerprint == device.fingerprint ? ' • request sent' : ''}'),
                 ),
               ),
           ],
