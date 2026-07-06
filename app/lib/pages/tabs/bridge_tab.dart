@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:common/model/device.dart';
+import 'package:common/model/file_type.dart' as common;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/model/cross_file.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/scan_facade.dart';
+import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -102,9 +107,15 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
       if (mounted) setState(() {});
       return;
     }
-    final controller = VideoPlayerController.file(file);
-    await controller.initialize();
-    await controller.setVolume(0);
+    final VideoPlayerController controller;
+    try {
+      controller = VideoPlayerController.file(file);
+      await controller.initialize();
+      await controller.setVolume(0);
+    } catch (_) {
+      if (mounted) setState(() {});
+      return;
+    }
     if (!mounted) {
       await controller.dispose();
       return;
@@ -137,6 +148,10 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
           ? 'ZealBridge is live. Select a nearby app to send a bridge request; QR codes are no longer required.'
           : 'Bridge request sent to ${target.alias}. When they accept, this device serves the stream in the background and stays muted.';
     });
+
+    if (target != null) {
+      unawaited(_sendBridgeAcceptRequest(target: target, bridgeUrl: 'http://$host:${server.port}/'));
+    }
   }
 
   Future<void> _stopServer() async {
@@ -275,9 +290,83 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
 
   String _stateJson() => '{"playing":$_isPlaying,"position":$_positionSeconds,"rate":$_playbackRate,"volume":$_volume,"muted":true,"keepAwake":$_keepAwake}';
 
+  Future<void> _sendBridgeAcceptRequest({
+    required Device target,
+    required String bridgeUrl,
+  }) async {
+    if (target.ip == null) {
+      if (!mounted) return;
+      setState(() {
+        _status = 'Selected ${target.alias}, but it has no LAN address yet. Refresh nearby devices or keep the phone on Receive / ZealBridge, then try again.';
+        _acceptanceRequested = false;
+        _acceptedDeviceFingerprint = null;
+      });
+      return;
+    }
+
+    final html = utf8.encode(_bridgeInviteHtml(bridgeUrl));
+    try {
+      await ref.notifier(sendProvider).startSession(
+        target: target,
+        files: [
+          CrossFile(
+            name: 'ZealBridge-player.html',
+            fileType: common.FileType.other,
+            size: html.length,
+            thumbnail: null,
+            asset: null,
+            path: null,
+            bytes: html,
+            lastModified: DateTime.now(),
+            lastAccessed: null,
+          ),
+        ],
+        background: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _status = 'Bridge request completed for ${target.alias}. If they accepted it, open ZealBridge-player.html on the phone, or open this player link: $bridgeUrl';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _status = 'Could not send the bridge accept request to ${target.alias}: $e';
+        _acceptanceRequested = false;
+        _acceptedDeviceFingerprint = null;
+      });
+    }
+  }
+
+  String _bridgeInviteHtml(String bridgeUrl) {
+    final fileName = _mediaFile?.path.split(Platform.pathSeparator).last ?? 'ZealBridge media';
+    final escapedUrl = const HtmlEscape().convert(bridgeUrl);
+    final escapedFileName = const HtmlEscape().convert(fileName);
+    return '''<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>$_brandName Player</title>
+  <style>body{font-family:sans-serif;margin:24px;background:#101816;color:white}a.button{display:inline-block;margin:16px 0;padding:12px 16px;background:#55d6a5;color:#082014;border-radius:12px;text-decoration:none;font-weight:700}.url{word-break:break-all;color:#bee}</style>
+</head>
+<body>
+  <h1>$_brandName Player</h1>
+  <p><strong>$escapedFileName</strong> is ready to play from the sender.</p>
+  <p>Tap the button below after accepting this request.</p>
+  <a class="button" href="$escapedUrl">Open bridge player</a>
+  <p class="url">$escapedUrl</p>
+</body>
+</html>''';
+  }
+
   String _playerHtml(String primaryType) {
     final tag = primaryType == 'audio' ? 'audio' : 'video';
     return '''<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>$_brandName</title><style>body{font-family:sans-serif;margin:24px;background:#101816;color:white}video,audio{width:100%;margin-top:16px}.row{display:flex;gap:8px;flex-wrap:wrap}button{padding:10px 14px}</style><h1>$_brandName</h1><p>Powered by God's Zeal. This in-app bridge endpoint keeps media controls synced; the desktop side stays muted while the phone plays audio in the background when the OS allows it.</p><$tag id="player" src="/stream" controls autoplay playsinline></$tag><div class="row"><button onclick="seek(-10)">-10s</button><button onclick="toggle()">Play/Pause</button><button onclick="seek(10)">+10s</button><button onclick="rate(.75)">0.75x</button><button onclick="rate(1)">1x</button><button onclick="rate(1.25)">1.25x</button></div><script>const p=document.getElementById('player');async function send(a){await fetch('/control?action='+a+'&position='+p.currentTime+'&rate='+p.playbackRate+'&volume='+p.volume)}function toggle(){p.paused?p.play():p.pause()}function seek(s){p.currentTime=Math.max(0,p.currentTime+s);send('seek')}function rate(r){p.playbackRate=r;send('rate')}p.onplay=()=>send('play');p.onpause=()=>send('pause');p.onseeked=()=>send('seek');setInterval(()=>send(p.paused?'pause':'play'),3000);</script>''';
+  }
+
+  Future<void> _openLocalPlayer() async {
+    final url = _url;
+    if (url == null) return;
+    await launchUrl(Uri.parse(url.replaceFirst('/stream', '/')), mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -307,6 +396,7 @@ class _BridgeTabState extends State<BridgeTab> with Refena, WidgetsBindingObserv
               Wrap(spacing: 8, runSpacing: 8, children: [
                 FilledButton.icon(onPressed: _pickMedia, icon: const Icon(Icons.folder_open), label: const Text('Choose media or audio')),
                 FilledButton.icon(onPressed: _server == null ? _startServer : null, icon: const Icon(Icons.play_arrow), label: const Text('Start bridge')),
+                OutlinedButton.icon(onPressed: url == null ? null : _openLocalPlayer, icon: const Icon(Icons.open_in_browser), label: const Text('Open player')),
                 OutlinedButton.icon(onPressed: _server == null ? null : _stopServer, icon: const Icon(Icons.stop), label: const Text('Stop')),
               ]),
               const SizedBox(height: 12),
