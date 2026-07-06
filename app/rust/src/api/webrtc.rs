@@ -69,6 +69,9 @@ pub async fn connect(
     .await;
 
     while let Some(message) = rx.recv().await {
+        if matches!(message, WsServerMessage::Signal(_)) {
+            continue;
+        }
         let _ = sink.add(message.into());
     }
 }
